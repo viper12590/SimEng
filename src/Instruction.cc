@@ -40,6 +40,6 @@ void Instruction::setCommitReady() { canCommit_ = true; }
 bool Instruction::canCommit() const { return canCommit_; }
 
 void Instruction::setThreadId(uint8_t threadId) { threadId_ = threadId; }
-uint8_t Instruction::getThreadId() { return threadId_; }
+uint8_t Instruction::getThreadId() const { return threadId_; }
 
 }  // namespace simeng

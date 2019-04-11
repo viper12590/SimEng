@@ -9,7 +9,8 @@ namespace pipeline {
 
 class RegisterAliasTableTest : public testing::Test {
  public:
-  RegisterAliasTableTest() : rat({{8, architecturalCount}}, {physicalCount}) {}
+  RegisterAliasTableTest()
+      : rat({{8, architecturalCount}}, {physicalCount}, 1) {}
 
  protected:
   const uint16_t architecturalCount = 32;
@@ -44,13 +45,13 @@ TEST_F(RegisterAliasTableTest, CanNotAllocate) {
 TEST_F(RegisterAliasTableTest, Allocate) {
   auto initialFreeRegisters = rat.freeRegistersAvailable(0);
 
-  auto oldMapping = rat.getMapping(reg);
-  auto newMapping = rat.allocate(reg);
+  auto oldMapping = rat.getMapping(reg, 0);
+  auto newMapping = rat.allocate(reg, 0);
 
   // Check the mapping changed
   EXPECT_NE(oldMapping, newMapping);
   // Check the mapping is reflected in future calls
-  EXPECT_EQ(newMapping, rat.getMapping(reg));
+  EXPECT_EQ(newMapping, rat.getMapping(reg, 0));
 
   // Check that the old register isn't yet freed
   EXPECT_EQ(rat.freeRegistersAvailable(0), initialFreeRegisters - 1);
@@ -61,10 +62,10 @@ TEST_F(RegisterAliasTableTest, Allocate) {
 TEST_F(RegisterAliasTableTest, AllocateIndependent) {
   auto multiRAT =
       RegisterAliasTable({{8, architecturalCount}, {8, architecturalCount}},
-                         {physicalCount, physicalCount});
+                         {physicalCount, physicalCount}, 1);
   auto initialFreeRegisters1 = multiRAT.freeRegistersAvailable(1);
 
-  multiRAT.allocate(reg);
+  multiRAT.allocate(reg, 0);
 
   // Check that the same number of physical registers are still available
   EXPECT_EQ(multiRAT.freeRegistersAvailable(1), initialFreeRegisters1);
@@ -73,8 +74,8 @@ TEST_F(RegisterAliasTableTest, AllocateIndependent) {
 // Tests that a physical register can be committed, freeing the old mapping
 TEST_F(RegisterAliasTableTest, Commit) {
   auto initialFreeRegisters = rat.freeRegistersAvailable(0);
-  auto mapping = rat.allocate(reg);
-  rat.commit(mapping);
+  auto mapping = rat.allocate(reg, 0);
+  rat.commit(mapping, 0);
 
   EXPECT_EQ(rat.freeRegistersAvailable(0), initialFreeRegisters);
 }
@@ -83,12 +84,12 @@ TEST_F(RegisterAliasTableTest, Commit) {
 // freeing the allocated register
 TEST_F(RegisterAliasTableTest, Rewind) {
   auto initialFreeRegisters = rat.freeRegistersAvailable(0);
-  auto oldMapping = rat.getMapping(reg);
-  auto newMapping = rat.allocate(reg);
-  rat.rewind(newMapping);
+  auto oldMapping = rat.getMapping(reg, 0);
+  auto newMapping = rat.allocate(reg, 0);
+  rat.rewind(newMapping, 0);
 
   // Check that the old mapping is once again available
-  EXPECT_EQ(rat.getMapping(reg), oldMapping);
+  EXPECT_EQ(rat.getMapping(reg, 0), oldMapping);
   // Check that the new allocation was freed
   EXPECT_EQ(rat.freeRegistersAvailable(0), initialFreeRegisters);
 }

@@ -20,7 +20,7 @@ class ReorderBufferTest : public testing::Test {
  public:
   ReorderBufferTest()
       : memory{},
-        rat({{8, 32}}, {64}),
+        rat({{8, 32}}, {64}, 1),
         lsq(maxLSQLoads, maxLSQStores, memory),
         uop(new MockInstruction),
         uop2(new MockInstruction),

@@ -115,7 +115,7 @@ class Instruction {
   void setThreadId(uint8_t threadId);
 
   /** Retrieve this instruction's hardware thread ID. */
-  uint8_t getThreadId();
+  uint8_t getThreadId() const;
 
   /** Set this instruction's sequence ID. */
   void setSequenceId(uint64_t seqId);

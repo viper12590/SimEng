@@ -78,19 +78,21 @@ void RenameUnit::tick() {
 
     input_.stall(false);
 
+    const auto& threadId = uop->getThreadId();
+
     // Allocate source registers
     auto& sourceRegisters = uop->getOperandRegisters();
     for (size_t i = 0; i < sourceRegisters.size(); i++) {
       const auto& reg = sourceRegisters[i];
       if (!uop->isOperandReady(i)) {
-        uop->renameSource(i, rat_.getMapping(reg));
+        uop->renameSource(i, rat_.getMapping(reg, threadId));
       }
     }
 
     // Allocate destination registers
     for (size_t i = 0; i < destinationRegisters.size(); i++) {
       const auto& reg = destinationRegisters[i];
-      uop->renameDestination(i, rat_.allocate(reg));
+      uop->renameDestination(i, rat_.allocate(reg, threadId));
     }
 
     // Reserve a slot in the ROB for this uop

@@ -40,9 +40,11 @@ unsigned int ReorderBuffer::commit(unsigned int maxCommitSize) {
       return n + 1;
     }
 
+    const auto& threadId = uop->getThreadId();
+
     const auto& destinations = uop->getDestinationRegisters();
     for (const auto& reg : destinations) {
-      rat_.commit(reg);
+      rat_.commit(reg, threadId);
     }
 
     // If it's a memory op, commit the entry at the head of the respective queue
@@ -76,8 +78,10 @@ void ReorderBuffer::flush(uint64_t afterSeqId) {
       break;
     }
 
+    const auto& threadId = uop->getThreadId();
+
     for (const auto& reg : uop->getDestinationRegisters()) {
-      rat_.rewind(reg);
+      rat_.rewind(reg, threadId);
     }
     uop->setFlushed();
     buffer_.pop_back();

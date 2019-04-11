@@ -48,7 +48,7 @@ class Core : public simeng::Core {
   void handleException();
 
   /** Apply changes to the process state. */
-  void applyStateChange(const ProcessStateChange& change);
+  void applyStateChange(const ProcessStateChange& change, uint8_t thread);
 
   /** Inspect units and flush pipelines if required. */
   void flushIfNeeded();
@@ -61,8 +61,8 @@ class Core : public simeng::Core {
   /** The core's register alias table. */
   pipeline::RegisterAliasTable registerAliasTable_;
 
-  /** The mapped register file set. */
-  pipeline::MappedRegisterFileSet mappedRegisterFileSet_;
+  /** The mapped register file sets for each thread. */
+  std::vector<pipeline::MappedRegisterFileSet> mappedRegisterFileSets_;
 
   /** The process memory. */
   span<char> processMemory_;

@@ -27,6 +27,7 @@ const std::vector<std::vector<uint16_t>> portArrangement = {
     {A64InstructionGroups::ARITHMETIC},
     {A64InstructionGroups::BRANCH}};
 const unsigned int executionUnitCount = portArrangement.size();
+const unsigned int threads = 2;
 
 // TODO: Replace simple process memory space with memory hierarchy interface.
 Core::Core(const span<char> processMemory, uint64_t entryPoint,
@@ -35,8 +36,7 @@ Core::Core(const span<char> processMemory, uint64_t entryPoint,
     : isa_(isa),
       registerFileSet_(physicalRegisterStructures),
       registerAliasTable_(isa.getRegisterFileStructures(),
-                          physicalRegisterQuantities),
-      mappedRegisterFileSet_(registerFileSet_, registerAliasTable_),
+                          physicalRegisterQuantities, threads),
       processMemory_(processMemory),
       loadStoreQueue_(loadQueueSize, storeQueueSize, processMemory.data()),
       reorderBuffer_(robSize, registerAliasTable_, loadStoreQueue_,
@@ -55,6 +55,11 @@ Core::Core(const span<char> processMemory, uint64_t entryPoint,
       dispatchIssueUnit_(renameToDispatchBuffer_, issuePorts_, registerFileSet_,
                          portAllocator, physicalRegisterQuantities, rsSize),
       writebackUnit_(completionSlots_, registerFileSet_) {
+  // Construct a mapped register file set for each thread
+  for (uint8_t i = 0; i < threads; i++) {
+    mappedRegisterFileSets_.emplace_back(registerFileSet_, registerAliasTable_,
+                                         i);
+  }
   for (size_t i = 0; i < executionUnitCount; i++) {
     executionUnits_.emplace_back(
         issuePorts_[i], completionSlots_[i],
@@ -67,7 +72,9 @@ Core::Core(const span<char> processMemory, uint64_t entryPoint,
   }
   // Query and apply initial state
   auto state = isa.getInitialState(processMemory);
-  applyStateChange(state);
+  for (uint8_t i = 0; i < threads; i++) {
+    applyStateChange(state, i);
+  }
 };
 
 void Core::tick() {
@@ -223,9 +230,11 @@ void Core::handleException() {
 
   exceptionGenerated_ = false;
 
-  auto result =
-      isa_.handleException(exceptionGeneratingInstruction_,
-                           mappedRegisterFileSet_, processMemory_.data());
+  auto threadId = exceptionGeneratingInstruction_->getThreadId();
+
+  auto result = isa_.handleException(exceptionGeneratingInstruction_,
+                                     mappedRegisterFileSets_[threadId],
+                                     processMemory_.data());
 
   if (result.fatal) {
     hasHalted_ = true;
@@ -234,14 +243,14 @@ void Core::handleException() {
   }
 
   fetchUnit_.updatePC(result.instructionAddress);
-  applyStateChange(result.stateChange);
+  applyStateChange(result.stateChange, threadId);
 }
 
-void Core::applyStateChange(const ProcessStateChange& change) {
+void Core::applyStateChange(const ProcessStateChange& change, uint8_t thread) {
   // Update registers
   for (size_t i = 0; i < change.modifiedRegisters.size(); i++) {
-    mappedRegisterFileSet_.set(change.modifiedRegisters[i],
-                               change.modifiedRegisterValues[i]);
+    mappedRegisterFileSets_[thread].set(change.modifiedRegisters[i],
+                                        change.modifiedRegisterValues[i]);
   }
 
   // Update memory

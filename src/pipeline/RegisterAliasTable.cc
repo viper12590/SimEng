@@ -7,42 +7,50 @@ namespace pipeline {
 
 RegisterAliasTable::RegisterAliasTable(
     std::vector<RegisterFileStructure> architecturalStructure,
-    std::vector<uint16_t> physicalRegisterCounts)
-    : mappingTable_(architecturalStructure.size()),
+    std::vector<uint16_t> physicalRegisterCounts, uint8_t threads)
+    : mappingTables_(threads,
+                     RegisterMappingTable(architecturalStructure.size())),
       historyTable_(architecturalStructure.size()),
       destinationTable_(architecturalStructure.size()),
       freeQueues_(architecturalStructure.size()) {
   assert(architecturalStructure.size() == physicalRegisterCounts.size() &&
          "The number of physical register types does not match the number of "
          "architectural register types");
-
   for (size_t type = 0; type < architecturalStructure.size(); type++) {
     auto archCount = architecturalStructure[type].quantity;
     auto physCount = physicalRegisterCounts[type];
-    assert(archCount <= physCount &&
-           "Cannot have fewer physical registers than architectural registers");
+    assert(archCount < physCount &&
+           "Must have more physical registers than architectural registers");
+    assert(archCount * threads < physCount &&
+           "Must have enough physical registers to cover the architectural "
+           "register state for each thread");
 
-    // Set up the initial mapping table state for this register type
-    mappingTable_[type].resize(archCount);
-
-    for (size_t tag = 0; tag < archCount; tag++) {
-      // Pre-assign a physical register to each architectural register
-      mappingTable_[type][tag] = tag;
-    }
-
-    // Add remaining physical registers to free queue
-    for (size_t tag = archCount; tag < physCount; tag++) {
+    // Add physical registers to free queue
+    for (size_t tag = 0; tag < physCount; tag++) {
       freeQueues_[type].push(tag);
     }
 
     // Set up history/destination tables
     historyTable_[type].resize(physCount);
     destinationTable_[type].resize(physCount);
+
+    // For each thread, set up the initial mapping table state for this register
+    // type
+    for (size_t thread = 0; thread < threads; thread++) {
+      mappingTables_[thread][type].resize(archCount);
+
+      for (size_t tag = 0; tag < archCount; tag++) {
+        // Pre-assign a physical register to each architectural register
+        mappingTables_[thread][type][tag] = freeQueues_[type].front();
+        freeQueues_[type].pop();
+      }
+    }
   }
 };
 
-Register RegisterAliasTable::getMapping(Register architectural) const {
-  auto tag = mappingTable_[architectural.type][architectural.tag];
+Register RegisterAliasTable::getMapping(Register architectural,
+                                        uint8_t threadId) const {
+  auto tag = mappingTables_[threadId][architectural.type][architectural.tag];
   return {architectural.type, tag};
 }
 
@@ -55,7 +63,8 @@ unsigned int RegisterAliasTable::freeRegistersAvailable(uint8_t type) const {
   return freeQueues_[type].size();
 }
 
-Register RegisterAliasTable::allocate(Register architectural) {
+Register RegisterAliasTable::allocate(Register architectural,
+                                      uint8_t threadId) {
   std::queue<uint16_t>& freeQueue = freeQueues_[architectural.type];
   assert(freeQueue.size() > 0 &&
          "Attempted to allocate free register when none were available");
@@ -65,27 +74,27 @@ Register RegisterAliasTable::allocate(Register architectural) {
 
   // Keep the old physical register in the history table
   historyTable_[architectural.type][tag] =
-      mappingTable_[architectural.type][architectural.tag];
+      mappingTables_[threadId][architectural.type][architectural.tag];
 
   // Update the mapping table with the new tag, and mark the architectural
   // register it replaces in the destination table
-  mappingTable_[architectural.type][architectural.tag] = tag;
+  mappingTables_[threadId][architectural.type][architectural.tag] = tag;
   destinationTable_[architectural.type][tag] = architectural.tag;
 
   return {architectural.type, tag};
 }
 
-void RegisterAliasTable::commit(Register physical) {
+void RegisterAliasTable::commit(Register physical, uint8_t threadId) {
   // Find the register previously mapped to the same architectural register and
   // free it
   auto oldTag = historyTable_[physical.type][physical.tag];
   freeQueues_[physical.type].push(oldTag);
 }
-void RegisterAliasTable::rewind(Register physical) {
+void RegisterAliasTable::rewind(Register physical, uint8_t threadId) {
   // Find which architectural tag this referred to
   auto destinationTag = destinationTable_[physical.type][physical.tag];
   // Rewind the mapping table to the old physical tag
-  mappingTable_[physical.type][destinationTag] =
+  mappingTables_[threadId][physical.type][destinationTag] =
       historyTable_[physical.type][physical.tag];
   // Add the rewound physical tag back to the free queue
   freeQueues_[physical.type].push(physical.tag);
