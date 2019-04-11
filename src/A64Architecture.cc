@@ -23,6 +23,7 @@ A64Architecture::~A64Architecture() { cs_close(&capstoneHandle); }
 
 uint8_t A64Architecture::predecode(const void* ptr, uint8_t bytesAvailable,
                                    uint64_t instructionAddress,
+                                   uint8_t threadId,
                                    BranchPrediction prediction,
                                    MacroOp& output) const {
   assert(bytesAvailable >= 4 && "Fewer than 4 bytes supplied to A64 decoder");
@@ -56,6 +57,7 @@ uint8_t A64Architecture::predecode(const void* ptr, uint8_t bytesAvailable,
   std::shared_ptr<Instruction> uop =
       std::make_shared<A64Instruction>(decodeCache.find(insn)->second);
 
+  uop->setThreadId(threadId);
   uop->setInstructionAddress(instructionAddress);
   uop->setBranchPrediction(prediction);
 

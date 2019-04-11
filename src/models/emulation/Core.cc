@@ -27,7 +27,8 @@ void Core::tick() {
   }
 
   // Fetch
-  auto bytesRead = isa_.predecode(insnPtr_ + pc_, 4, pc_, {false, 0}, macroOp_);
+  auto bytesRead =
+      isa_.predecode(insnPtr_ + pc_, 4, pc_, 0, {false, 0}, macroOp_);
 
   pc_ += bytesRead;
 

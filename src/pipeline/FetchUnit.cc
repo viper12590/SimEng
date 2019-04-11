@@ -18,6 +18,8 @@ void FetchUnit::tick() {
     return;
   }
 
+  const uint8_t threadId = 0;
+
   auto outputSlots = output_.getTailSlots();
   for (size_t slot = 0; slot < output_.getWidth(); slot++) {
     if (hasHalted_) {
@@ -29,7 +31,7 @@ void FetchUnit::tick() {
 
     auto prediction = branchPredictor_.predict(pc_);
     auto bytesRead =
-        isa_.predecode(insnPtr_ + pc_, 4, pc_, prediction, macroOp);
+        isa_.predecode(insnPtr_ + pc_, 4, pc_, threadId, prediction, macroOp);
 
     if (!prediction.taken) {
       // Predicted as not taken; increment PC to next instruction

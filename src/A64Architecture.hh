@@ -20,7 +20,8 @@ class A64Architecture : public Architecture {
    * instances. Returns the number of bytes consumed to produce it (always 4),
    * and writes into the supplied macro-op vector. */
   uint8_t predecode(const void* ptr, uint8_t bytesAvailable,
-                    uint64_t instructionAddress, BranchPrediction prediction,
+                    uint64_t instructionAddress, uint8_t threadId,
+                    BranchPrediction prediction,
                     MacroOp& output) const override;
 
   /** Returns an ARMv8-a register file structure description. */

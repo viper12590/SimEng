@@ -40,11 +40,11 @@ TEST_F(PipelineFetchUnitTest, Tick) {
 
   // Verify the prediction matches the one we provided
   // Set the output parameter to a 1-wide macro-op
-  EXPECT_CALL(isa, predecode(_, _, 0,
+  EXPECT_CALL(isa, predecode(_, _, 0, _,
                              AllOf(Field(&BranchPrediction::taken, true),
                                    Field(&BranchPrediction::target, 1)),
                              _))
-      .WillOnce(DoAll(SetArgReferee<4>(macroOp), Return(1)));
+      .WillOnce(DoAll(SetArgReferee<5>(macroOp), Return(1)));
 
   fetchUnit.tick();
 
@@ -57,7 +57,7 @@ TEST_F(PipelineFetchUnitTest, TickStalled) {
   output.stall(true);
 
   EXPECT_CALL(predictor, predict(_)).Times(0);
-  EXPECT_CALL(isa, predecode(_, _, _, _, _)).Times(0);
+  EXPECT_CALL(isa, predecode(_, _, _, _, _, _)).Times(0);
 
   fetchUnit.tick();
 

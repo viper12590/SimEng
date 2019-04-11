@@ -44,7 +44,7 @@ class Architecture {
    * consumed to produce it; a value of 0 indicates too few bytes were present
    * for a valid decoding. */
   virtual uint8_t predecode(const void* ptr, uint8_t bytesAvailable,
-                            uint64_t instructionAddress,
+                            uint64_t instructionAddress, uint8_t threadId,
                             BranchPrediction prediction,
                             MacroOp& output) const = 0;
 

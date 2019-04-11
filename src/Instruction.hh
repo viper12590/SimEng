@@ -111,6 +111,12 @@ class Instruction {
   /** Supply a branch prediction. */
   void setBranchPrediction(BranchPrediction prediction);
 
+  /** Set this instruction's hardware thread ID. */
+  void setThreadId(uint8_t threadId);
+
+  /** Retrieve this instruction's hardware thread ID. */
+  uint8_t getThreadId();
+
   /** Set this instruction's sequence ID. */
   void setSequenceId(uint64_t seqId);
 
@@ -156,6 +162,9 @@ class Instruction {
 
   /** Has this instruction been flushed? */
   bool flushed_ = false;
+
+  // SMT
+  uint8_t threadId_;
 };
 
 }  // namespace simeng
