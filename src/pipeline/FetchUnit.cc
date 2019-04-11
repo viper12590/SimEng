@@ -4,10 +4,11 @@ namespace simeng {
 namespace pipeline {
 
 FetchUnit::FetchUnit(PipelineBuffer<MacroOp>& output, const char* insnPtr,
-                     unsigned int programByteLength, uint64_t entryPoint,
-                     const Architecture& isa, BranchPredictor& branchPredictor)
+                     unsigned int programByteLength,
+                     std::vector<uint64_t> entryPoints, const Architecture& isa,
+                     BranchPredictor& branchPredictor)
     : output_(output),
-      pc_(entryPoint),
+      programCounters_(entryPoints),
       insnPtr_(insnPtr),
       programByteLength_(programByteLength),
       isa_(isa),
@@ -29,19 +30,20 @@ void FetchUnit::tick() {
 
     auto& macroOp = outputSlots[slot];
 
-    auto prediction = branchPredictor_.predict(pc_);
+    auto& pc = programCounters_[threadId];
+    auto prediction = branchPredictor_.predict(pc);
     auto bytesRead =
-        isa_.predecode(insnPtr_ + pc_, 4, pc_, threadId, prediction, macroOp);
+        isa_.predecode(insnPtr_ + pc, 4, pc, threadId, prediction, macroOp);
 
     if (!prediction.taken) {
       // Predicted as not taken; increment PC to next instruction
-      pc_ += bytesRead;
+      pc += bytesRead;
     } else {
       // Predicted as taken; set PC to predicted target address
-      pc_ = prediction.target;
+      pc = prediction.target;
     }
 
-    if (pc_ >= programByteLength_) {
+    if (pc >= programByteLength_) {
       hasHalted_ = true;
       break;
     }
@@ -58,9 +60,10 @@ void FetchUnit::tick() {
 
 bool FetchUnit::hasHalted() const { return hasHalted_; }
 
-void FetchUnit::updatePC(uint64_t address) {
-  pc_ = address;
-  hasHalted_ = (pc_ >= programByteLength_);
+void FetchUnit::updatePC(uint64_t address, uint8_t threadId) {
+  auto& pc = programCounters_[threadId];
+  pc = address;
+  hasHalted_ = (pc >= programByteLength_);
 }
 
 uint64_t FetchUnit::getBranchStalls() const { return branchStalls_; }

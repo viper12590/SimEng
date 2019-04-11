@@ -13,7 +13,7 @@ class FetchUnit {
   /** Construct a fetch unit with a reference to an output buffer, the ISA, and
    * the current branch predictor, and information on the instruction memory. */
   FetchUnit(PipelineBuffer<MacroOp>& output, const char* insnPtr,
-            unsigned int programByteLength, uint64_t entryPoint,
+            unsigned int programByteLength, std::vector<uint64_t> entryPoints,
             const Architecture& isa, BranchPredictor& branchPredictor);
 
   /** Tick the fetch unit. Retrieves and pre-decodes the instruction at the
@@ -25,7 +25,7 @@ class FetchUnit {
   bool hasHalted() const;
 
   /** Update the program counter to the specified address. */
-  void updatePC(uint64_t address);
+  void updatePC(uint64_t address, uint8_t threadId);
 
   /** Retrieve the number of cycles fetch terminated early due to a predicted
    * branch. */
@@ -36,7 +36,7 @@ class FetchUnit {
   PipelineBuffer<MacroOp>& output_;
 
   /** The current program counter. */
-  uint64_t pc_ = 0;
+  std::vector<uint64_t> programCounters_;
 
   /** Pointer to the start of instruction memory. */
   const char* insnPtr_;

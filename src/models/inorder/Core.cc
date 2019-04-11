@@ -16,7 +16,7 @@ Core::Core(const span<char> processMemory, uint64_t entryPoint,
       decodeToExecuteBuffer_(1, nullptr),
       completionSlots_(1, {1, nullptr}),
       fetchUnit_(fetchToDecodeBuffer_, processMemory.data(),
-                 processMemory.size(), entryPoint, isa, branchPredictor),
+                 processMemory.size(), {entryPoint}, isa, branchPredictor),
       decodeUnit_(fetchToDecodeBuffer_, decodeToExecuteBuffer_,
                   branchPredictor),
       executeUnit_(
@@ -68,7 +68,7 @@ void Core::tick() {
     // Update PC and wipe younger buffers (Fetch/Decode, Decode/Execute)
     auto targetAddress = executeUnit_.getFlushAddress();
 
-    fetchUnit_.updatePC(targetAddress);
+    fetchUnit_.updatePC(targetAddress, 0);
     fetchToDecodeBuffer_.fill({});
     decodeToExecuteBuffer_.fill(nullptr);
 
@@ -78,7 +78,7 @@ void Core::tick() {
     // Update PC and wipe Fetch/Decode buffer.
     auto targetAddress = decodeUnit_.getFlushAddress();
 
-    fetchUnit_.updatePC(targetAddress);
+    fetchUnit_.updatePC(targetAddress, 0);
     fetchToDecodeBuffer_.fill({});
 
     flushes_++;

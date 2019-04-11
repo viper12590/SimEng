@@ -19,7 +19,7 @@ namespace pipeline {
 class PipelineFetchUnitTest : public testing::Test {
  public:
   PipelineFetchUnitTest()
-      : output(1, {}), fetchUnit(output, nullptr, 1024, 0, isa, predictor) {}
+      : output(1, {}), fetchUnit(output, nullptr, 1024, {0}, isa, predictor) {}
 
  protected:
   PipelineBuffer<MacroOp> output;

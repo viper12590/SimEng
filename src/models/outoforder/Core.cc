@@ -27,7 +27,7 @@ const std::vector<std::vector<uint16_t>> portArrangement = {
     {A64InstructionGroups::ARITHMETIC},
     {A64InstructionGroups::BRANCH}};
 const unsigned int executionUnitCount = portArrangement.size();
-const unsigned int threads = 2;
+const unsigned int threads = 1;
 
 // TODO: Replace simple process memory space with memory hierarchy interface.
 Core::Core(const span<char> processMemory, uint64_t entryPoint,
@@ -47,7 +47,7 @@ Core::Core(const span<char> processMemory, uint64_t entryPoint,
       issuePorts_(executionUnitCount, {1, nullptr}),
       completionSlots_(executionUnitCount, {1, nullptr}),
       fetchUnit_(fetchToDecodeBuffer_, processMemory.data(),
-                 processMemory.size(), entryPoint, isa, branchPredictor),
+                 processMemory.size(), {entryPoint}, isa, branchPredictor),
       decodeUnit_(fetchToDecodeBuffer_, decodeToRenameBuffer_, branchPredictor),
       renameUnit_(decodeToRenameBuffer_, renameToDispatchBuffer_,
                   reorderBuffer_, registerAliasTable_, loadStoreQueue_,
@@ -145,7 +145,7 @@ void Core::flushIfNeeded() {
       targetAddress = reorderBuffer_.getFlushAddress();
     }
 
-    fetchUnit_.updatePC(targetAddress);
+    fetchUnit_.updatePC(targetAddress, 0);
     fetchToDecodeBuffer_.fill({});
     fetchToDecodeBuffer_.stall(false);
 
@@ -166,7 +166,7 @@ void Core::flushIfNeeded() {
     // Update PC and wipe Fetch/Decode buffer.
     targetAddress = decodeUnit_.getFlushAddress();
 
-    fetchUnit_.updatePC(targetAddress);
+    fetchUnit_.updatePC(targetAddress, 0);
     fetchToDecodeBuffer_.fill({});
     fetchToDecodeBuffer_.stall(false);
 
