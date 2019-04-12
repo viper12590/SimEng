@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -59,6 +60,11 @@ class PipelineBuffer {
 
   /** Fill the buffer with a specified value. */
   void fill(const T& value) { std::fill(buffer.begin(), buffer.end(), value); }
+
+  /** Replace all buffer values that satisfy `predicate` with `newValue`. */
+  void replaceIf(std::function<bool(const T&)> predicate, const T& newValue) {
+    std::replace_if(buffer.begin(), buffer.end(), predicate, newValue);
+  }
 
   /** Get the width of the buffer slots. */
   unsigned short getWidth() const { return width; }

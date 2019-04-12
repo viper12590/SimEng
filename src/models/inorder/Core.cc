@@ -78,10 +78,19 @@ void Core::tick() {
       if (conditions.duringExecute) {
         // Flush occurred during execute stage; flush buffer between decode and
         // execute
-        decodeToExecuteBuffer_.fill(nullptr);
+        decodeToExecuteBuffer_.replaceIf(
+            [&thread](auto uop) {
+              return (uop != nullptr && uop->getThreadId() == thread);
+            },
+            nullptr);
       }
       fetchUnit_.updatePC(conditions.address, thread);
-      fetchToDecodeBuffer_.fill({});
+
+      fetchToDecodeBuffer_.replaceIf(
+          [&thread](auto macroOp) {
+            return (macroOp.size() > 0 && macroOp[0]->getThreadId() == thread);
+          },
+          {});
 
       conditions.shouldFlush = false;
     }

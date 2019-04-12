@@ -146,22 +146,29 @@ void Core::flushIfNeeded() {
 
     if (conditions.outOfOrder) {
       outOfOrderFlushed = true;
-      // Also flush out-of-order instructions
+      // Flush out-of-order instructions
       reorderBuffer_.flush(conditions.afterSeqId, thread);
       // In-order flush can only happen during decode; flush everything
-      // afterwards
-      decodeToRenameBuffer_.fill(nullptr);
-      renameToDispatchBuffer_.fill(nullptr);
+      // after that.
+      decodeToRenameBuffer_.replaceIf(
+          [&thread](auto uop) {
+            return (uop != nullptr && uop->getThreadId() == thread);
+          },
+          nullptr);
+      renameToDispatchBuffer_.replaceIf(
+          [&thread](auto uop) {
+            return (uop != nullptr && uop->getThreadId() == thread);
+          },
+          nullptr);
     }
     fetchUnit_.updatePC(conditions.address, thread);
-    fetchToDecodeBuffer_.fill({});
+
+    fetchToDecodeBuffer_.replaceIf(
+        [&thread](auto macroOp) {
+          return (macroOp.size() > 0 && macroOp[0]->getThreadId() == thread);
+        },
+        {});
     fetchToDecodeBuffer_.stall(false);
-
-    decodeToRenameBuffer_.fill(nullptr);
-    decodeToRenameBuffer_.stall(false);
-
-    renameToDispatchBuffer_.fill(nullptr);
-    renameToDispatchBuffer_.stall(false);
 
     conditions.shouldFlush = false;
   }
