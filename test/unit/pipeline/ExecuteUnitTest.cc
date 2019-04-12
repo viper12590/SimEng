@@ -8,6 +8,7 @@
 namespace simeng {
 namespace pipeline {
 
+using ::testing::_;
 using ::testing::AtLeast;
 using ::testing::ElementsAre;
 using ::testing::Invoke;
@@ -20,6 +21,8 @@ class MockExecutionHandlers {
   MOCK_METHOD2(forwardOperands,
                void(const span<Register>, const span<RegisterValue>));
   MOCK_METHOD1(raiseException, void(std::shared_ptr<Instruction> instruction));
+  MOCK_METHOD3(raiseFlush,
+               void(uint64_t afterSeqId, uint64_t address, uint8_t threadId));
 };
 
 class PipelineExecuteUnitTest : public testing::Test {
@@ -35,6 +38,9 @@ class PipelineExecuteUnitTest : public testing::Test {
             [this](auto uop) {}, [this](auto uop) {},
             [this](auto instruction) {
               executionHandlers.raiseException(instruction);
+            },
+            [this](auto afterSeqId, auto address, auto threadId) {
+              executionHandlers.raiseFlush(afterSeqId, address, threadId);
             },
             predictor),
         uop(new MockInstruction),
@@ -113,9 +119,10 @@ TEST_F(PipelineExecuteUnitTest, ExecuteBranch) {
   EXPECT_CALL(executionHandlers, forwardOperands(IsEmpty(), IsEmpty()))
       .Times(1);
 
+  EXPECT_CALL(executionHandlers, raiseFlush(_, _, _)).Times(0);
+
   executeUnit.tick();
 
-  EXPECT_EQ(executeUnit.shouldFlush(), false);
   EXPECT_EQ(output.getTailSlots()[0].get(), uop);
 }
 

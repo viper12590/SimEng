@@ -17,16 +17,22 @@ Core::Core(const span<char> processMemory, uint64_t entryPoint,
       completionSlots_(1, {1, nullptr}),
       fetchUnit_(fetchToDecodeBuffer_, processMemory.data(),
                  processMemory.size(), {entryPoint}, isa, branchPredictor),
-      decodeUnit_(fetchToDecodeBuffer_, decodeToExecuteBuffer_,
-                  branchPredictor),
+      decodeUnit_(fetchToDecodeBuffer_, decodeToExecuteBuffer_, branchPredictor,
+                  [this](auto address, auto threadId) {
+                    raiseFlush(address, threadId, false);
+                  }),
       executeUnit_(
           decodeToExecuteBuffer_, completionSlots_[0],
           [this](auto regs, auto values) { forwardOperands(regs, values); },
           [this](auto instruction) { loadData(instruction); },
           [this](auto instruction) { storeData(instruction); },
           [this](auto instruction) { raiseException(instruction); },
+          [this](auto, auto address, auto threadId) {
+            raiseFlush(address, threadId, true);
+          },
           branchPredictor),
-      writebackUnit_(completionSlots_, registerFileSet_) {
+      writebackUnit_(completionSlots_, registerFileSet_),
+      flushConditions_(1) {
   // Query and apply initial state
   auto state = isa.getInitialState(processMemory);
   applyStateChange(state);
@@ -62,26 +68,26 @@ void Core::tick() {
     return;
   }
 
-  // Check for flush
-  if (executeUnit_.shouldFlush()) {
-    // Flush was requested at execute stage
-    // Update PC and wipe younger buffers (Fetch/Decode, Decode/Execute)
-    auto targetAddress = executeUnit_.getFlushAddress();
+  if (flushPending_) {
+    for (uint8_t thread = 0; thread < flushConditions_.size(); thread++) {
+      auto& conditions = flushConditions_[thread];
+      if (!conditions.shouldFlush) {
+        continue;
+      }
 
-    fetchUnit_.updatePC(targetAddress, 0);
-    fetchToDecodeBuffer_.fill({});
-    decodeToExecuteBuffer_.fill(nullptr);
+      if (conditions.duringExecute) {
+        // Flush occurred during execute stage; flush buffer between decode and
+        // execute
+        decodeToExecuteBuffer_.fill(nullptr);
+      }
+      fetchUnit_.updatePC(conditions.address, thread);
+      fetchToDecodeBuffer_.fill({});
+
+      conditions.shouldFlush = false;
+    }
 
     flushes_++;
-  } else if (decodeUnit_.shouldFlush()) {
-    // Flush was requested at decode stage
-    // Update PC and wipe Fetch/Decode buffer.
-    auto targetAddress = decodeUnit_.getFlushAddress();
-
-    fetchUnit_.updatePC(targetAddress, 0);
-    fetchToDecodeBuffer_.fill({});
-
-    flushes_++;
+    flushPending_ = false;
   }
 }
 
@@ -117,6 +123,8 @@ void Core::raiseException(const std::shared_ptr<Instruction>& instruction) {
 void Core::handleException() {
   exceptionGenerated_ = false;
 
+  auto threadId = exceptionGeneratingInstruction_->getThreadId();
+
   auto result = isa_.handleException(exceptionGeneratingInstruction_,
                                      registerFileSet_, processMemory.data());
 
@@ -126,13 +134,30 @@ void Core::handleException() {
     return;
   }
 
-  fetchUnit_.updatePC(result.instructionAddress);
+  fetchUnit_.updatePC(result.instructionAddress, threadId);
   applyStateChange(result.stateChange);
 
   // Flush pipeline
   fetchToDecodeBuffer_.fill({});
   decodeToExecuteBuffer_.fill(nullptr);
   completionSlots_[0].fill(nullptr);
+}
+
+void Core::raiseFlush(uint64_t address, uint8_t threadId, bool duringExecute) {
+  auto& conditions = flushConditions_[threadId];
+  if (conditions.shouldFlush) {
+    if (!duringExecute) {
+      // There's already a flush pending; as this didn't occur during execute,
+      // the flush must be for an older instruction
+      return;
+    }
+  }
+
+  conditions.shouldFlush = true;
+  conditions.address = address;
+  conditions.duringExecute = duringExecute;
+
+  flushPending_ = true;
 }
 
 void Core::loadData(const std::shared_ptr<Instruction>& instruction) {

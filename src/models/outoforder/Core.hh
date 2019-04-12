@@ -19,6 +19,18 @@ namespace simeng {
 namespace models {
 namespace outoforder {
 
+/** An individual thread's flush conditions. */
+struct FlushConditions {
+  /** Whether this thread should be flushed at the end of this cycle. */
+  bool shouldFlush = false;
+  /** The sequence ID to flush after. */
+  uint64_t afterSeqId;
+  /** The address to flush to. */
+  uint64_t address;
+  /** Whether the flush occurred during the out-of-order section of the core. */
+  bool outOfOrder;
+};
+
 /** An out-of-order pipeline core model. Provides a 6-stage pipeline: Fetch,
  * Decode, Rename, Dispatch/Issue, Execute, Writeback. */
 class Core : public simeng::Core {
@@ -53,6 +65,13 @@ class Core : public simeng::Core {
   /** Inspect units and flush pipelines if required. */
   void flushIfNeeded();
 
+  /** Raise a flush to the core, providing the sequence ID to flush after, the
+   * address to flush to, the thread to flush, and whether the flush occurred in
+   * the out-of-order section of the core. */
+  void raiseFlush(uint64_t afterSeqId, uint64_t address, uint8_t threadId,
+                  bool outOfOrder);
+
+  /** A reference to the current architecture. */
   const Architecture& isa_;
 
   /** The core's register file set. */
@@ -112,6 +131,12 @@ class Core : public simeng::Core {
 
   /** The writeback unit; writes uop results to the register files. */
   pipeline::WritebackUnit writebackUnit_;
+
+  /** Whether a flush was raised during the cycle. */
+  bool flushPending_ = false;
+
+  /** The flush conditions for the previous cycle, for each thread. */
+  std::vector<FlushConditions> flushConditions_;
 
   /** The number of times the pipeline has been flushed. */
   uint64_t flushes_ = 0;

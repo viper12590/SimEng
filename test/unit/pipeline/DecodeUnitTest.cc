@@ -14,13 +14,21 @@ using ::testing::_;
 using ::testing::Property;
 using ::testing::Return;
 
+class MockFlushHandler {
+ public:
+  MOCK_METHOD2(raiseFlush, void(uint64_t address, uint8_t threadId));
+};
+
 class PipelineDecodeUnitTest : public testing::Test {
  public:
   PipelineDecodeUnitTest()
       : input(1, {}),
         output(1, nullptr),
         registerFileSet({{8, 1}}),
-        decodeUnit(input, output, predictor),
+        decodeUnit(input, output, predictor,
+                   [this](auto address, auto threadId) {
+                     flushHandler.raiseFlush(address, threadId);
+                   }),
         uop(new MockInstruction),
         uopPtr(uop),
         sourceRegisters({{0, 0}}) {}
@@ -30,6 +38,7 @@ class PipelineDecodeUnitTest : public testing::Test {
   PipelineBuffer<std::shared_ptr<Instruction>> output;
   RegisterFileSet registerFileSet;
   MockBranchPredictor predictor;
+  MockFlushHandler flushHandler;
   DecodeUnit decodeUnit;
 
   MockInstruction* uop;
@@ -53,14 +62,14 @@ TEST_F(PipelineDecodeUnitTest, Tick) {
   EXPECT_CALL(*uop, checkEarlyBranchMisprediction())
       .WillOnce(Return(std::tuple<bool, uint64_t>(false, 0)));
 
+  // Check no flush is requested
+  EXPECT_CALL(flushHandler, raiseFlush(_, _)).Times(0);
+
   decodeUnit.tick();
 
   // Check result uop is the same as the one provided
   auto result = output.getTailSlots()[0];
   EXPECT_EQ(result.get(), uop);
-
-  // Check no flush was requested
-  EXPECT_EQ(decodeUnit.shouldFlush(), false);
 }
 
 // Tests that the decode unit requests a flush when a non-branch is mispredicted
@@ -76,11 +85,10 @@ TEST_F(PipelineDecodeUnitTest, Flush) {
   // Check the predictor is updated with the correct instruction address and PC
   EXPECT_CALL(predictor, update(2, false, 1));
 
-  decodeUnit.tick();
-
   // Check that a flush was correctly requested
-  EXPECT_EQ(decodeUnit.shouldFlush(), true);
-  EXPECT_EQ(decodeUnit.getFlushAddress(), 1);
+  EXPECT_CALL(flushHandler, raiseFlush(1, _));
+
+  decodeUnit.tick();
 }
 
 }  // namespace pipeline

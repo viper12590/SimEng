@@ -33,23 +33,15 @@ class ExecuteUnit {
       std::function<void(const std::shared_ptr<Instruction>&)> handleLoad,
       std::function<void(const std::shared_ptr<Instruction>&)> handleStore,
       std::function<void(const std::shared_ptr<Instruction>&)> raiseException,
+      std::function<void(uint64_t afterSeqId, uint64_t address,
+                         uint8_t threadId)>
+          raiseFlush,
       BranchPredictor& predictor);
 
   /** Tick the execute unit. Places incoming instructions into the pipeline and
    * executes an instruction that has reached the head of the pipeline, if
    * present. */
   void tick();
-
-  /** Query whether a branch misprediction was discovered this cycle. */
-  bool shouldFlush() const;
-
-  /** Retrieve the target instruction address associated with the most recently
-   * discovered misprediction. */
-  uint64_t getFlushAddress() const;
-
-  /** Retrieve the sequence ID associated with the most recently discovered
-   * misprediction. */
-  uint64_t getFlushSeqId() const;
 
  private:
   /** Execute the supplied uop, write it into the output buffer, and forward
@@ -73,6 +65,10 @@ class ExecuteUnit {
   /** A function handle called upon exception generation. */
   std::function<void(const std::shared_ptr<Instruction>&)> raiseException_;
 
+  /** A function handle called upon flush discovery. */
+  std::function<void(uint64_t afterSeqId, uint64_t address, uint8_t threadId)>
+      raiseFlush_;
+
   /** A reference to the branch predictor, for updating with prediction results.
    */
   BranchPredictor& predictor_;
@@ -81,17 +77,6 @@ class ExecuteUnit {
    * execution latency has expired and they are ready for their final results to
    * be calculated and forwarded. */
   std::queue<ExecutionUnitPipelineEntry> pipeline_;
-
-  /** Whether the core should be flushed after this cycle. */
-  bool shouldFlush_;
-
-  /** The target instruction address the PC should be reset to after this cycle.
-   */
-  uint64_t pc_;
-
-  /** The sequence ID of the youngest instruction that should remain after the
-   * current flush. */
-  uint64_t flushAfter_;
 
   /** The number of times this unit has been ticked. */
   uint64_t tickCounter_ = 0;

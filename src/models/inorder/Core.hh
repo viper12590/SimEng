@@ -14,6 +14,16 @@ namespace simeng {
 namespace models {
 namespace inorder {
 
+/** An individual thread's flush conditions. */
+struct FlushConditions {
+  /** Whether this thread should be flushed at the end of the cycle. */
+  bool shouldFlush = false;
+  /** The address this thread should flush to. */
+  uint64_t address;
+  /** Whether this flush occurred during the execute stage. */
+  bool duringExecute;
+};
+
 /** A simple scalar in-order pipelined core model. */
 class Core : public simeng::Core {
  public:
@@ -40,6 +50,11 @@ class Core : public simeng::Core {
 
   /** Handle an exception raised during the cycle. */
   void handleException();
+
+  /** Raise a flush to the core, providing the address to flush to, the thread
+   * to flush, and whether or not the flush occurred during the execute stage.
+   */
+  void raiseFlush(uint64_t address, uint8_t threadId, bool duringExecute);
 
   /** Load and supply memory data requested by an instruction. */
   void loadData(const std::shared_ptr<Instruction>& instruction);
@@ -102,6 +117,12 @@ class Core : public simeng::Core {
 
   /** A pointer to the instruction responsible for generating the exception. */
   std::shared_ptr<Instruction> exceptionGeneratingInstruction_;
+
+  /** Whether a flush was raised during the cycle. */
+  bool flushPending_ = false;
+
+  /** The flush conditions for the previous cycle, for each thread. */
+  std::vector<FlushConditions> flushConditions_;
 
   /** Whether the core has halted. */
   bool hasHalted_ = false;

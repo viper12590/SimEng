@@ -18,7 +18,10 @@ class ReorderBuffer {
    * reference to the register alias table. */
   ReorderBuffer(
       unsigned int maxSize, RegisterAliasTable& rat, LoadStoreQueue& lsq,
-      std::function<void(const std::shared_ptr<Instruction>&)> raiseException);
+      std::function<void(const std::shared_ptr<Instruction>&)> raiseException,
+      std::function<void(uint64_t afterSeqId, uint64_t address,
+                         uint8_t threadId)>
+          raiseFlush);
 
   /** Add the provided instruction to the ROB. */
   void reserve(const std::shared_ptr<Instruction>& insn);
@@ -27,25 +30,13 @@ class ReorderBuffer {
   unsigned int commit(unsigned int maxCommitSize);
 
   /** Flush all instructions with a sequence ID greater than `afterSeqId`. */
-  void flush(uint64_t afterSeqId);
+  void flush(uint64_t afterSeqId, uint8_t threadId);
 
   /** Retrieve the current size of the ROB. */
   unsigned int size() const;
 
   /** Retrieve the current amount of free space in the ROB. */
   unsigned int getFreeSpace() const;
-
-  /** Query whether a memory order violation was discovered in the most recent
-   * cycle. */
-  bool shouldFlush() const;
-
-  /** Retrieve the instruction address associated with the most recently
-   * discovered memory order violation. */
-  uint64_t getFlushAddress() const;
-
-  /** Retrieve the sequence ID associated with the most recently discovered
-   * memory order violation. */
-  uint64_t getFlushSeqId() const;
 
  private:
   /** A reference to the register alias table. */
@@ -59,6 +50,10 @@ class ReorderBuffer {
 
   /** A function to call upon exception generation. */
   std::function<void(std::shared_ptr<Instruction>)> raiseException_;
+
+  /** A function to call upon flush discovery. */
+  std::function<void(uint64_t afterSeqId, uint64_t address, uint8_t threadId)>
+      raiseFlush_;
 
   /** The buffer containing in-flight instructions. */
   std::deque<std::shared_ptr<Instruction>> buffer_;

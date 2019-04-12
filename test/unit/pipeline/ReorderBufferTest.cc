@@ -11,9 +11,11 @@ using ::testing::Return;
 namespace simeng {
 namespace pipeline {
 
-class MockExceptionHandler {
+class MockROBHandlers {
  public:
   MOCK_METHOD1(raiseException, void(std::shared_ptr<Instruction> instruction));
+  MOCK_METHOD3(raiseFlush,
+               void(uint64_t afterSeqId, uint64_t address, uint8_t threadId));
 };
 
 class ReorderBufferTest : public testing::Test {
@@ -26,9 +28,12 @@ class ReorderBufferTest : public testing::Test {
         uop2(new MockInstruction),
         uopPtr(uop),
         uopPtr2(uop2),
-        reorderBuffer(maxROBSize, rat, lsq, [this](auto insn) {
-          exceptionHandler.raiseException(insn);
-        }) {}
+        reorderBuffer(
+            maxROBSize, rat, lsq,
+            [this](auto insn) { robHandlers.raiseException(insn); },
+            [this](auto afterSeqId, auto address, auto threadId) {
+              robHandlers.raiseFlush(afterSeqId, address, threadId);
+            }) {}
 
  protected:
   const uint8_t maxLSQLoads = 32;
@@ -39,7 +44,7 @@ class ReorderBufferTest : public testing::Test {
   RegisterAliasTable rat;
   LoadStoreQueue lsq;
 
-  MockExceptionHandler exceptionHandler;
+  MockROBHandlers robHandlers;
 
   MockInstruction* uop;
   MockInstruction* uop2;
@@ -178,7 +183,7 @@ TEST_F(ReorderBufferTest, Flush) {
   reorderBuffer.reserve(uopPtr);
   reorderBuffer.reserve(uopPtr2);
 
-  reorderBuffer.flush(uop->getSequenceId());
+  reorderBuffer.flush(uop->getSequenceId(), 0);
 
   EXPECT_EQ(uop->isFlushed(), false);
   EXPECT_EQ(uop2->isFlushed(), true);
@@ -193,7 +198,7 @@ TEST_F(ReorderBufferTest, Exception) {
   uop->setCommitReady();
   uop->setExceptionEncountered(true);
 
-  EXPECT_CALL(exceptionHandler, raiseException(uopPtr)).Times(1);
+  EXPECT_CALL(robHandlers, raiseException(uopPtr)).Times(1);
 
   auto committed = reorderBuffer.commit(1);
 

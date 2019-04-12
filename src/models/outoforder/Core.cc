@@ -39,8 +39,12 @@ Core::Core(const span<char> processMemory, uint64_t entryPoint,
                           physicalRegisterQuantities, threads),
       processMemory_(processMemory),
       loadStoreQueue_(loadQueueSize, storeQueueSize, processMemory.data()),
-      reorderBuffer_(robSize, registerAliasTable_, loadStoreQueue_,
-                     [this](auto instruction) { raiseException(instruction); }),
+      reorderBuffer_(
+          robSize, registerAliasTable_, loadStoreQueue_,
+          [this](auto instruction) { raiseException(instruction); },
+          [this](auto afterSeqId, auto address, auto threadId) {
+            raiseFlush(afterSeqId, address, threadId, true);
+          }),
       fetchToDecodeBuffer_(frontendWidth, {}),
       decodeToRenameBuffer_(frontendWidth, nullptr),
       renameToDispatchBuffer_(frontendWidth, nullptr),
@@ -48,13 +52,17 @@ Core::Core(const span<char> processMemory, uint64_t entryPoint,
       completionSlots_(executionUnitCount, {1, nullptr}),
       fetchUnit_(fetchToDecodeBuffer_, processMemory.data(),
                  processMemory.size(), {entryPoint}, isa, branchPredictor),
-      decodeUnit_(fetchToDecodeBuffer_, decodeToRenameBuffer_, branchPredictor),
+      decodeUnit_(fetchToDecodeBuffer_, decodeToRenameBuffer_, branchPredictor,
+                  [this](auto address, auto threadId) {
+                    raiseFlush(0, address, threadId, false);
+                  }),
       renameUnit_(decodeToRenameBuffer_, renameToDispatchBuffer_,
                   reorderBuffer_, registerAliasTable_, loadStoreQueue_,
                   physicalRegisterStructures.size()),
       dispatchIssueUnit_(renameToDispatchBuffer_, issuePorts_, registerFileSet_,
                          portAllocator, physicalRegisterQuantities, rsSize),
-      writebackUnit_(completionSlots_, registerFileSet_) {
+      writebackUnit_(completionSlots_, registerFileSet_),
+      flushConditions_(threads) {
   // Construct a mapped register file set for each thread
   for (uint8_t i = 0; i < threads; i++) {
     mappedRegisterFileSets_.emplace_back(registerFileSet_, registerAliasTable_,
@@ -68,6 +76,9 @@ Core::Core(const span<char> processMemory, uint64_t entryPoint,
         },
         [this](auto uop) { loadStoreQueue_.startLoad(uop); },
         [this](auto uop) {}, [this](auto uop) { uop->setCommitReady(); },
+        [this](auto afterSeqId, auto address, auto threadId) {
+          raiseFlush(afterSeqId, address, threadId, true);
+        },
         branchPredictor);
   }
   // Query and apply initial state
@@ -121,31 +132,28 @@ void Core::tick() {
 }
 
 void Core::flushIfNeeded() {
-  // Check for flush
-  bool euFlush = false;
-  uint64_t targetAddress = 0;
-  uint64_t lowestSeqId = 0;
-  for (const auto& eu : executionUnits_) {
-    if (eu.shouldFlush() && (!euFlush || eu.getFlushSeqId() < lowestSeqId)) {
-      euFlush = true;
-      lowestSeqId = eu.getFlushSeqId();
-      targetAddress = eu.getFlushAddress();
-    }
+  if (!flushPending_) {
+    return;
   }
-  if (euFlush || reorderBuffer_.shouldFlush()) {
-    // Flush was requested in an out-of-order stage.
-    // Update PC and wipe in-order buffers (Fetch/Decode, Decode/Rename,
-    // Rename/Dispatch)
 
-    if (reorderBuffer_.shouldFlush() &&
-        (!euFlush || reorderBuffer_.getFlushSeqId() < lowestSeqId)) {
-      // If the reorder buffer found an older instruction to flush up to, do
-      // that instead
-      lowestSeqId = reorderBuffer_.getFlushSeqId();
-      targetAddress = reorderBuffer_.getFlushAddress();
+  bool outOfOrderFlushed = false;
+
+  for (size_t thread = 0; thread < flushConditions_.size(); thread++) {
+    auto& conditions = flushConditions_[thread];
+    if (!conditions.shouldFlush) {
+      continue;
     }
 
-    fetchUnit_.updatePC(targetAddress, 0);
+    if (conditions.outOfOrder) {
+      outOfOrderFlushed = true;
+      // Also flush out-of-order instructions
+      reorderBuffer_.flush(conditions.afterSeqId, thread);
+      // In-order flush can only happen during decode; flush everything
+      // afterwards
+      decodeToRenameBuffer_.fill(nullptr);
+      renameToDispatchBuffer_.fill(nullptr);
+    }
+    fetchUnit_.updatePC(conditions.address, thread);
     fetchToDecodeBuffer_.fill({});
     fetchToDecodeBuffer_.stall(false);
 
@@ -155,23 +163,16 @@ void Core::flushIfNeeded() {
     renameToDispatchBuffer_.fill(nullptr);
     renameToDispatchBuffer_.stall(false);
 
-    // Flush everything younger than the bad instruction from the ROB
-    reorderBuffer_.flush(lowestSeqId);
+    conditions.shouldFlush = false;
+  }
+
+  if (outOfOrderFlushed) {
     dispatchIssueUnit_.purgeFlushed();
     loadStoreQueue_.purgeFlushed();
-
-    flushes_++;
-  } else if (decodeUnit_.shouldFlush()) {
-    // Flush was requested at decode stage
-    // Update PC and wipe Fetch/Decode buffer.
-    targetAddress = decodeUnit_.getFlushAddress();
-
-    fetchUnit_.updatePC(targetAddress, 0);
-    fetchToDecodeBuffer_.fill({});
-    fetchToDecodeBuffer_.stall(false);
-
-    flushes_++;
   }
+  flushes_++;
+
+  flushPending_ = false;
 }
 
 bool Core::hasHalted() const {
@@ -211,6 +212,29 @@ void Core::raiseException(const std::shared_ptr<Instruction>& instruction) {
   exceptionGeneratingInstruction_ = instruction;
 }
 
+void Core::raiseFlush(uint64_t afterSeqId, uint64_t address, uint8_t threadId,
+                      bool outOfOrder) {
+  auto& conditions = flushConditions_[threadId];
+  if (conditions.shouldFlush) {
+    if (!outOfOrder) {
+      // There's already a flush pending; as this didn't occur in an
+      // out-of-order section, the flush must be for an older instruction
+      return;
+    }
+    if (conditions.outOfOrder && conditions.afterSeqId < afterSeqId) {
+      // There's already a flush pending for an older instruction
+      return;
+    }
+  }
+
+  conditions.shouldFlush = true;
+  conditions.afterSeqId = afterSeqId;
+  conditions.outOfOrder = outOfOrder;
+  conditions.address = address;
+
+  flushPending_ = true;
+}
+
 void Core::handleException() {
   fetchToDecodeBuffer_.fill({});
   fetchToDecodeBuffer_.stall(false);
@@ -221,16 +245,17 @@ void Core::handleException() {
   renameToDispatchBuffer_.fill(nullptr);
   renameToDispatchBuffer_.stall(false);
 
+  auto threadId = exceptionGeneratingInstruction_->getThreadId();
+
   // Flush everything younger than the exception-generating instruction.
   // This must happen prior to handling the exception to ensure the commit state
   // is up-to-date with the register mapping table
-  reorderBuffer_.flush(exceptionGeneratingInstruction_->getSequenceId());
+  reorderBuffer_.flush(exceptionGeneratingInstruction_->getSequenceId(),
+                       threadId);
   dispatchIssueUnit_.purgeFlushed();
   loadStoreQueue_.purgeFlushed();
 
   exceptionGenerated_ = false;
-
-  auto threadId = exceptionGeneratingInstruction_->getThreadId();
 
   auto result = isa_.handleException(exceptionGeneratingInstruction_,
                                      mappedRegisterFileSets_[threadId],
@@ -242,7 +267,7 @@ void Core::handleException() {
     return;
   }
 
-  fetchUnit_.updatePC(result.instructionAddress);
+  fetchUnit_.updatePC(result.instructionAddress, threadId);
   applyStateChange(result.stateChange, threadId);
 }
 

@@ -8,11 +8,14 @@ namespace pipeline {
 
 ReorderBuffer::ReorderBuffer(
     unsigned int maxSize, RegisterAliasTable& rat, LoadStoreQueue& lsq,
-    std::function<void(const std::shared_ptr<Instruction>&)> raiseException)
+    std::function<void(const std::shared_ptr<Instruction>&)> raiseException,
+    std::function<void(uint64_t afterSeqId, uint64_t address, uint8_t threadId)>
+        raiseFlush)
     : rat_(rat),
       lsq_(lsq),
       maxSize_(maxSize),
-      raiseException_(raiseException) {}
+      raiseException_(raiseException),
+      raiseFlush_(raiseFlush) {}
 
 void ReorderBuffer::reserve(const std::shared_ptr<Instruction>& insn) {
   assert(buffer_.size() < maxSize_ &&
@@ -53,9 +56,9 @@ unsigned int ReorderBuffer::commit(unsigned int maxCommitSize) {
       if (violationFound) {
         // Memory order violation found; aborting commits and flushing
         auto load = lsq_.getViolatingLoad();
-        shouldFlush_ = true;
-        flushAfter_ = load->getSequenceId() - 1;
-        pc_ = load->getInstructionAddress();
+
+        raiseFlush_(load->getSequenceId() - 1, load->getInstructionAddress(),
+                    load->getThreadId());
 
         buffer_.pop_front();
         return n + 1;
@@ -69,7 +72,7 @@ unsigned int ReorderBuffer::commit(unsigned int maxCommitSize) {
   return n;
 }
 
-void ReorderBuffer::flush(uint64_t afterSeqId) {
+void ReorderBuffer::flush(uint64_t afterSeqId, uint8_t threadId) {
   // Iterate backwards from the tail of the queue to find and remove ops newer
   // than `afterSeqId`
   while (!buffer_.empty()) {
@@ -77,8 +80,9 @@ void ReorderBuffer::flush(uint64_t afterSeqId) {
     if (uop->getSequenceId() <= afterSeqId) {
       break;
     }
-
-    const auto& threadId = uop->getThreadId();
+    if (uop->getThreadId() != threadId) {
+      continue;
+    }
 
     for (const auto& reg : uop->getDestinationRegisters()) {
       rat_.rewind(reg, threadId);
@@ -93,10 +97,6 @@ unsigned int ReorderBuffer::size() const { return buffer_.size(); }
 unsigned int ReorderBuffer::getFreeSpace() const {
   return maxSize_ - buffer_.size();
 }
-
-bool ReorderBuffer::shouldFlush() const { return shouldFlush_; }
-uint64_t ReorderBuffer::getFlushAddress() const { return pc_; }
-uint64_t ReorderBuffer::getFlushSeqId() const { return flushAfter_; }
 
 }  // namespace pipeline
 }  // namespace simeng

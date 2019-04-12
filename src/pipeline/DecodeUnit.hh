@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include "../Architecture.hh"
 #include "PipelineBuffer.hh"
 
@@ -10,22 +12,18 @@ namespace pipeline {
  * uops. */
 class DecodeUnit {
  public:
-  /** Constructs a decode unit with references to input/output buffers and the
-   * current branch predictor. */
-  DecodeUnit(PipelineBuffer<MacroOp>& input,
-             PipelineBuffer<std::shared_ptr<Instruction>>& output,
-             BranchPredictor& predictor);
+  /** Constructs a decode unit with references to input/output buffers, the
+   * current branch predictor, and a function handle to raise encountered
+   * flushes. */
+  DecodeUnit(
+      PipelineBuffer<MacroOp>& input,
+      PipelineBuffer<std::shared_ptr<Instruction>>& output,
+      BranchPredictor& predictor,
+      std::function<void(uint64_t address, uint8_t threadId)> raiseFlush);
 
   /** Ticks the decode unit. Breaks macro-ops into uops, and performs early
    * branch misprediction checks. */
   void tick();
-
-  /** Check whether the core should be flushed this cycle. */
-  bool shouldFlush() const;
-
-  /** Retrieve the target instruction address associated with the most recently
-   * discovered misprediction. */
-  uint64_t getFlushAddress() const;
 
   /** Retrieve the number of times that the decode unit requested a flush due to
    * discovering a branch misprediction early. */
@@ -40,11 +38,8 @@ class DecodeUnit {
   /** A reference to the current branch predictor. */
   BranchPredictor& predictor_;
 
-  /** Whether the core should be flushed after this cycle. */
-  bool shouldFlush_;
-
-  /** The target instruction address the PC should be updated to upon flush. */
-  uint64_t pc_;
+  /** A function handle to call to raise an encountered flush. */
+  std::function<void(uint64_t address, uint8_t threadId)> raiseFlush_;
 
   /** The number of times that the decode unit requested a flush due to
    * discovering a branch misprediction early. */

@@ -12,6 +12,8 @@ ExecuteUnit::ExecuteUnit(
     std::function<void(const std::shared_ptr<Instruction>&)> handleLoad,
     std::function<void(const std::shared_ptr<Instruction>&)> handleStore,
     std::function<void(const std::shared_ptr<Instruction>&)> raiseException,
+    std::function<void(uint64_t afterSeqId, uint64_t address, uint8_t threadId)>
+        raiseFlush,
     BranchPredictor& predictor)
     : input_(input),
       output_(output),
@@ -19,11 +21,11 @@ ExecuteUnit::ExecuteUnit(
       handleLoad_(handleLoad),
       handleStore_(handleStore),
       raiseException_(raiseException),
+      raiseFlush_(raiseFlush),
       predictor_(predictor) {}
 
 void ExecuteUnit::tick() {
   tickCounter_++;
-  shouldFlush_ = false;
 
   auto& uop = input_.getHeadSlots()[0];
   if (uop != nullptr) {
@@ -91,15 +93,14 @@ void ExecuteUnit::execute(std::shared_ptr<Instruction>& uop) {
   if (uop->isStore()) {
     handleStore_(uop);
   } else if (uop->isBranch()) {
-    pc_ = uop->getBranchAddress();
-
     // Update branch predictor with branch results
-    predictor_.update(uop->getInstructionAddress(), uop->wasBranchTaken(), pc_);
+    predictor_.update(uop->getInstructionAddress(), uop->wasBranchTaken(),
+                      uop->getBranchAddress());
 
     if (uop->wasBranchMispredicted()) {
       // Misprediction; flush the pipeline
-      shouldFlush_ = true;
-      flushAfter_ = uop->getSequenceId();
+      raiseFlush_(uop->getSequenceId(), uop->getBranchAddress(),
+                  uop->getThreadId());
     }
   }
 
@@ -108,10 +109,6 @@ void ExecuteUnit::execute(std::shared_ptr<Instruction>& uop) {
 
   output_.getTailSlots()[0] = uop;
 }
-
-bool ExecuteUnit::shouldFlush() const { return shouldFlush_; }
-uint64_t ExecuteUnit::getFlushAddress() const { return pc_; }
-uint64_t ExecuteUnit::getFlushSeqId() const { return flushAfter_; }
 
 }  // namespace pipeline
 }  // namespace simeng

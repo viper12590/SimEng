@@ -5,10 +5,15 @@
 namespace simeng {
 namespace pipeline {
 
-DecodeUnit::DecodeUnit(PipelineBuffer<MacroOp>& input,
-                       PipelineBuffer<std::shared_ptr<Instruction>>& output,
-                       BranchPredictor& predictor)
-    : input_(input), output_(output), predictor_(predictor){};
+DecodeUnit::DecodeUnit(
+    PipelineBuffer<MacroOp>& input,
+    PipelineBuffer<std::shared_ptr<Instruction>>& output,
+    BranchPredictor& predictor,
+    std::function<void(uint64_t address, uint8_t threadId)> raiseFlush)
+    : input_(input),
+      output_(output),
+      predictor_(predictor),
+      raiseFlush_(raiseFlush){};
 
 void DecodeUnit::tick() {
   if (output_.isStalled()) {
@@ -16,7 +21,6 @@ void DecodeUnit::tick() {
     return;
   }
 
-  shouldFlush_ = false;
   input_.stall(false);
 
   for (size_t slot = 0; slot < input_.getWidth(); slot++) {
@@ -44,12 +48,11 @@ void DecodeUnit::tick() {
     auto [misprediction, correctAddress] = uop->checkEarlyBranchMisprediction();
     if (misprediction) {
       earlyFlushes_++;
-      shouldFlush_ = true;
-      pc_ = correctAddress;
+      raiseFlush_(correctAddress, uop->getThreadId());
 
       if (!uop->isBranch()) {
         // Non-branch incorrectly predicted as a branch; let the predictor know
-        predictor_.update(uop->getInstructionAddress(), false, pc_);
+        predictor_.update(uop->getInstructionAddress(), false, correctAddress);
       }
 
       // Skip processing remaining macro-ops, as they need to be flushed
@@ -58,8 +61,6 @@ void DecodeUnit::tick() {
   }
 }
 
-bool DecodeUnit::shouldFlush() const { return shouldFlush_; }
-uint64_t DecodeUnit::getFlushAddress() const { return pc_; }
 uint64_t DecodeUnit::getEarlyFlushes() const { return earlyFlushes_; };
 
 }  // namespace pipeline
