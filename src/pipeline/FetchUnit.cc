@@ -12,18 +12,19 @@ FetchUnit::FetchUnit(PipelineBuffer<MacroOp>& output, const char* insnPtr,
       insnPtr_(insnPtr),
       programByteLength_(programByteLength),
       isa_(isa),
-      branchPredictor_(branchPredictor){};
+      branchPredictor_(branchPredictor),
+      hasHalted_(entryPoints.size(), false){};
 
 void FetchUnit::tick() {
   if (output_.isStalled()) {
     return;
   }
 
-  const uint8_t threadId = 0;
+  threadId = (threadId + 1) % programCounters_.size();
 
   auto outputSlots = output_.getTailSlots();
   for (size_t slot = 0; slot < output_.getWidth(); slot++) {
-    if (hasHalted_) {
+    if (hasHalted_[threadId]) {
       // PC is outside instruction memory region; do nothing
       break;
     }
@@ -44,7 +45,8 @@ void FetchUnit::tick() {
     }
 
     if (pc >= programByteLength_) {
-      hasHalted_ = true;
+      hasHalted_[threadId] = true;
+      haltedThreads_++;
       break;
     }
 
@@ -58,12 +60,25 @@ void FetchUnit::tick() {
   }
 };
 
-bool FetchUnit::hasHalted() const { return hasHalted_; }
+bool FetchUnit::hasHalted() const {
+  return haltedThreads_ == hasHalted_.size();
+}
 
 void FetchUnit::updatePC(uint64_t address, uint8_t threadId) {
   auto& pc = programCounters_[threadId];
   pc = address;
-  hasHalted_ = (pc >= programByteLength_);
+
+  if (pc >= programByteLength_) {
+    if (!hasHalted_[threadId]) {
+      hasHalted_[threadId] = true;
+      haltedThreads_++;
+    }
+  } else {
+    if (hasHalted_[threadId]) {
+      hasHalted_[threadId] = false;
+      haltedThreads_--;
+    }
+  }
 }
 
 uint64_t FetchUnit::getBranchStalls() const { return branchStalls_; }

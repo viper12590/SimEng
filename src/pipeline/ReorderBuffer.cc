@@ -75,8 +75,8 @@ unsigned int ReorderBuffer::commit(unsigned int maxCommitSize) {
 void ReorderBuffer::flush(uint64_t afterSeqId, uint8_t threadId) {
   // Iterate backwards from the tail of the queue to find and remove ops newer
   // than `afterSeqId`
-  while (!buffer_.empty()) {
-    auto& uop = buffer_.back();
+  for (auto it = buffer_.rbegin(); it < buffer_.rend(); it++) {
+    auto& uop = *it;
     if (uop->getSequenceId() <= afterSeqId) {
       break;
     }
@@ -88,7 +88,11 @@ void ReorderBuffer::flush(uint64_t afterSeqId, uint8_t threadId) {
       rat_.rewind(reg, threadId);
     }
     uop->setFlushed();
-    buffer_.pop_back();
+
+    // Erase this entry
+    // Note that reverse iterators point next to their base, so we need to get
+    // the next iterator and erase the base of that
+    buffer_.erase(std::next(it).base());
   }
 }
 

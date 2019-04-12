@@ -180,6 +180,9 @@ TEST_F(ReorderBufferTest, CommitStore) {
 // Tests that the reorder buffer correctly conditionally flushes instructions
 // according to their sequence ID
 TEST_F(ReorderBufferTest, Flush) {
+  uop->setThreadId(0);
+  uop2->setThreadId(0);
+
   reorderBuffer.reserve(uopPtr);
   reorderBuffer.reserve(uopPtr2);
 

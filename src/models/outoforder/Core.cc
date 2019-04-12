@@ -27,7 +27,7 @@ const std::vector<std::vector<uint16_t>> portArrangement = {
     {A64InstructionGroups::ARITHMETIC},
     {A64InstructionGroups::BRANCH}};
 const unsigned int executionUnitCount = portArrangement.size();
-const unsigned int threads = 1;
+const unsigned int threads = 2;
 
 // TODO: Replace simple process memory space with memory hierarchy interface.
 Core::Core(const span<char> processMemory, uint64_t entryPoint,
@@ -135,6 +135,8 @@ void Core::flushIfNeeded() {
   if (!flushPending_) {
     return;
   }
+
+  std::cout << "Flushing!" << std::endl;
 
   bool outOfOrderFlushed = false;
 

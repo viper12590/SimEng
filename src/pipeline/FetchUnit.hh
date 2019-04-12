@@ -52,10 +52,14 @@ class FetchUnit {
   /** The current program halt state. Set to `true` when the PC leaves the
    * instruction memory region, and set back to `false` if the PC is returned to
    * the instruction region. */
-  bool hasHalted_ = false;
+  std::vector<bool> hasHalted_;
+
+  uint8_t haltedThreads_ = 0;
 
   /** The number of cycles fetch terminated early due to a predicted branch. */
   uint64_t branchStalls_ = 0;
+
+  uint8_t threadId = 0;
 };
 
 }  // namespace pipeline
