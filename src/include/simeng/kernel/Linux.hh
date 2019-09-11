@@ -66,6 +66,12 @@ class Linux {
   /** getegid syscall: get the process owner's effective group ID. */
   int64_t getegid() const;
 
+  /** gettimeofday syscall: get the current time, using the system timer
+   * `systemTimer` (with nanosecond accuracy). Returns 0 on success, and puts
+   * the seconds and microsconds elapsed since the Epoch `tv[0]` and `tv[1]`,
+   * while setting `tz[0]` and `tz[1]` to 0. */
+  int64_t gettimeofday(uint64_t systemTimer, int64_t* tv, int64_t* tz);
+
   /** ioctl syscall: control device. */
   int64_t ioctl(int64_t fd, uint64_t request, std::vector<char>& out);
 

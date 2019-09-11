@@ -84,6 +84,20 @@ int64_t Linux::geteuid() const { return 0; }
 int64_t Linux::getgid() const { return 0; }
 int64_t Linux::getegid() const { return 0; }
 
+int64_t Linux::gettimeofday(uint64_t systemTimer, int64_t* tv, int64_t* tz) {
+  // TODO: Ideally this should get the system timer from the core directly
+  // rather than having it passed as an argument.
+  if (tv) {
+    tv[0] = systemTimer / 1e9;
+    tv[1] = (systemTimer - (tv[0] * 1e9)) / 1e3;
+  }
+  if (tz) {
+    tz[0] = 0;
+    tz[1] = 0;
+  }
+  return 0;
+}
+
 int64_t Linux::ioctl(int64_t fd, uint64_t request, std::vector<char>& out) {
   assert(fd < processStates_[0].fileDescriptorTable.size());
   int64_t hfd = processStates_[0].fileDescriptorTable[fd];
