@@ -93,6 +93,31 @@ TEST_P(Syscall, fileio) {
   EXPECT_EQ(strncmp(str, outdata, 14), 0);
 }
 
+TEST_P(Syscall, filenotfound) {
+  // Copy filepath to heap
+  const char filepath[] = "./nonexistent-file";
+  initialHeapData_.resize(strlen(filepath) + 1);
+  memcpy(initialHeapData_.data(), filepath, strlen(filepath) + 1);
+
+  RUN_AARCH64(R"(
+    # Get heap address
+    mov x0, 0
+    mov x8, 214
+    svc #0
+
+    # <tempfile> = openat(AT_FDCWD, filepath, O_RDONLY, 0)
+    mov x1, x0
+    mov x0, -100
+    mov x2, 0
+    mov x3, 0
+    mov x8, #56
+    svc #0
+  )");
+
+  // Check return value is -1
+  EXPECT_EQ(getGeneralRegister<uint64_t>(0), -1);
+}
+
 TEST_P(Syscall, stdout) {
   const char str[] = "Hello, World!\n";
   for (char c : str) {

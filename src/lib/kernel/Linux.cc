@@ -141,24 +141,28 @@ int64_t Linux::openat(int64_t dirfd, const std::string& pathname, int64_t flags,
     }
   }
 
+  // Pass syscall through to host
+  assert(dirfd == -100 && "unsupported dirfd argument in openat syscall");
+  int64_t hfd = ::openat(AT_FDCWD, pathname.c_str(), flags, mode);
+  if (hfd < 0) {
+    return hfd;
+  }
+
   LinuxProcessState& processState = processStates_[0];
 
-  // Allocate the next available virtual file descriptor
+  // Allocate virtual file descriptor and map to host file descriptor
   int64_t vfd;
   if (!processState.freeFileDescriptors.empty()) {
     // Take virtual descriptor from free pool
     auto first = processState.freeFileDescriptors.begin();
     vfd = processState.freeFileDescriptors.extract(first).value();
+    processState.fileDescriptorTable[vfd] = hfd;
   } else {
     // Extend file descriptor table for a new virtual descriptor
     vfd = processState.fileDescriptorTable.size();
-    processState.fileDescriptorTable.push_back(-1);
+    processState.fileDescriptorTable.push_back(hfd);
   }
 
-  // Pass through to host and record corresponding host file descriptor
-  assert(dirfd == -100 && "unsupported dirfd argument in openat syscall");
-  int64_t fd = ::openat(AT_FDCWD, pathname.c_str(), flags, mode);
-  processState.fileDescriptorTable[vfd] = fd;
   return vfd;
 }
 
