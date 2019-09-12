@@ -116,6 +116,15 @@ int64_t Linux::ioctl(int64_t fd, uint64_t request, std::vector<char>& out) {
   }
 }
 
+uint64_t Linux::lseek(int64_t fd, uint64_t offset, int64_t whence) {
+  assert(fd < processStates_[0].fileDescriptorTable.size());
+  int64_t hfd = processStates_[0].fileDescriptorTable[fd];
+  if (hfd < 0) {
+    return EBADF;
+  }
+  return ::lseek(hfd, offset, whence);
+}
+
 int64_t Linux::openat(int64_t dirfd, const std::string& pathname, int64_t flags,
                       uint16_t mode) {
   // Resolve absolute path to target file
@@ -172,6 +181,15 @@ int64_t Linux::setTidAddress(uint64_t tidptr) {
   assert(processStates_.size() > 0);
   processStates_[0].clearChildTid = tidptr;
   return processStates_[0].pid;
+}
+
+int64_t Linux::readv(int64_t fd, void* iovdata, int iovcnt) {
+  assert(fd < processStates_[0].fileDescriptorTable.size());
+  int64_t hfd = processStates_[0].fileDescriptorTable[fd];
+  if (hfd < 0) {
+    return EBADF;
+  }
+  return ::readv(hfd, reinterpret_cast<const struct iovec*>(iovdata), iovcnt);
 }
 
 int64_t Linux::writev(int64_t fd, void* iovdata, int iovcnt) {

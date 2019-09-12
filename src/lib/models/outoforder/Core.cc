@@ -12,10 +12,10 @@ namespace models {
 namespace outoforder {
 
 // TODO: Replace with config options
-const std::initializer_list<uint16_t> physicalRegisterQuantities = {192, 128,
+const std::initializer_list<uint16_t> physicalRegisterQuantities = {154, 90,
                                                                     128};
 const std::initializer_list<RegisterFileStructure> physicalRegisterStructures =
-    {{8, 192}, {16, 128}, {1, 128}};
+    {{8, 154}, {16, 90}, {1, 128}};
 const unsigned int robSize = 180;
 const unsigned int rsSize = 60;
 const unsigned int loadQueueSize = 64;

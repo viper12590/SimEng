@@ -75,6 +75,9 @@ class Linux {
   /** ioctl syscall: control device. */
   int64_t ioctl(int64_t fd, uint64_t request, std::vector<char>& out);
 
+  /** lseek syscall: reposition read/write file offset. */
+  uint64_t lseek(int64_t fd, uint64_t offset, int64_t whence);
+
   /** openat syscall: open/create a file. */
   int64_t openat(int64_t dirfd, const std::string& path, int64_t flags,
                  uint16_t mode);
@@ -85,6 +88,9 @@ class Linux {
 
   /** set_tid_address syscall: set clear_child_tid value for calling thread. */
   int64_t setTidAddress(uint64_t tidptr);
+
+  /** readv syscall: read buffers from a file. */
+  int64_t readv(int64_t fd, void* iovdata, int iovcnt);
 
   /** writev syscall: write buffers to a file. */
   int64_t writev(int64_t fd, void* iovdata, int iovcnt);
