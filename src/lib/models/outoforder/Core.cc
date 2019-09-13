@@ -134,6 +134,7 @@ void Core::flushIfNeeded() {
   for (const auto& eu : executionUnits_) {
     if (eu.shouldFlush() && (!euFlush || eu.getFlushSeqId() < lowestSeqId)) {
       euFlush = true;
+      branchMispredicts_++;
       lowestSeqId = eu.getFlushSeqId();
       targetAddress = eu.getFlushAddress();
     }
@@ -330,7 +331,8 @@ std::map<std::string, std::string> Core::getStats() const {
           {"dispatch.rsStalls", std::to_string(rsStalls)},
           {"issue.frontendStalls", std::to_string(frontendStalls)},
           {"issue.backendStalls", std::to_string(backendStalls)},
-          {"issue.portBusyStalls", std::to_string(portBusyStalls)}};
+          {"issue.portBusyStalls", std::to_string(portBusyStalls)},
+          {"branch.mispredict", std::to_string(branchMispredicts_)}};
 }
 
 }  // namespace outoforder
