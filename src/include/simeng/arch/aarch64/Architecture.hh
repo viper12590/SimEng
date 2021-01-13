@@ -24,7 +24,7 @@ class Architecture : public arch::Architecture {
    * and writes into the supplied macro-op vector. */
   uint8_t predecode(const void* ptr, uint8_t bytesAvailable,
                     uint64_t instructionAddress, BranchPrediction prediction,
-                    MacroOp& output) const override;
+                    MacroOp& output, std::string& disasm) const override;
 
   /** Returns an ARMv8-a register file structure description. */
   std::vector<RegisterFileStructure> getRegisterFileStructures() const override;

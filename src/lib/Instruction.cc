@@ -44,4 +44,7 @@ bool Instruction::hasAllData() const { return (dataPending_ == 0); }
 uint16_t Instruction::getLatency() const { return latency_; }
 uint16_t Instruction::getStallCycles() const { return stallCycles_; }
 
+void Instruction::setTraceId(uint64_t trId) { traceId_ = trId; };
+uint64_t Instruction::getTraceId() const { return traceId_; };
+
 }  // namespace simeng

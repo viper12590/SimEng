@@ -11,6 +11,7 @@ namespace arch {
 namespace aarch64 {
 
 std::unordered_map<uint32_t, Instruction> Architecture::decodeCache;
+std::unordered_map<uint32_t, std::string> disasmCache;
 std::forward_list<InstructionMetadata> Architecture::metadataCache;
 
 Architecture::Architecture(kernel::Linux& kernel) : linux_(kernel) {
@@ -33,8 +34,8 @@ Architecture::~Architecture() { cs_close(&capstoneHandle); }
 
 uint8_t Architecture::predecode(const void* ptr, uint8_t bytesAvailable,
                                 uint64_t instructionAddress,
-                                BranchPrediction prediction,
-                                MacroOp& output) const {
+                                BranchPrediction prediction, MacroOp& output,
+                                std::string& disasm) const {
   // Check that instruction address is 4-byte aligned as required by Armv8
   if (instructionAddress & 0x3) {
     // Consume 1-byte and raise a misaligned PC exception
@@ -71,6 +72,17 @@ uint8_t Architecture::predecode(const void* ptr, uint8_t bytesAvailable,
     bool success =
         cs_disasm_iter(capstoneHandle, &encoding, &size, &address, &rawInsn);
 
+    // Construct a disassembly string
+    std::string m(rawInsn.mnemonic);
+    std::string o(rawInsn.op_str);
+    std::string data;
+    if (success)
+      data = m + " " + o;
+    else
+      data = "";
+    // Cache the decoded data
+    disasmCache.insert({insn, data});
+
     auto metadata =
         success ? InstructionMetadata(rawInsn) : InstructionMetadata(encoding);
 
@@ -96,6 +108,7 @@ uint8_t Architecture::predecode(const void* ptr, uint8_t bytesAvailable,
 
   uop->setInstructionAddress(instructionAddress);
   uop->setBranchPrediction(prediction);
+  disasm = disasmCache.find(insn)->second;
 
   return 4;
 }

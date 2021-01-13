@@ -80,8 +80,10 @@ void Core::tick() {
   }
 
   const auto& instructionBytes = fetched[fetchIndex].data;
-  auto bytesRead = isa_.predecode(instructionBytes.getAsVector<char>(),
-                                  FETCH_SIZE, pc_, {false, 0}, macroOp_);
+  std::string disasm;
+  auto bytesRead =
+      isa_.predecode(instructionBytes.getAsVector<char>(), FETCH_SIZE, pc_,
+                     {false, 0}, macroOp_, disasm);
 
   // Clear the fetched data
   instructionMemory_.clearCompletedReads();

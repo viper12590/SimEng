@@ -95,8 +95,9 @@ void FetchUnit::tick() {
     auto& macroOp = outputSlots[slot];
 
     BranchPrediction prediction = {false, 0};
+    std::string disasm;
     auto bytesRead = isa_.predecode(buffer + bufferOffset, bufferedBytes_, pc_,
-                                    prediction, macroOp);
+                                    prediction, macroOp, disasm);
 
     // If predecode fails, bail and wait for more data
     if (bytesRead == 0) {

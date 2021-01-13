@@ -1,11 +1,10 @@
 #pragma once
 
-#include "simeng/Core.hh"
-
 #include <iostream>
 #include <vector>
 
 #include "simeng/ArchitecturalRegisterFileSet.hh"
+#include "simeng/Core.hh"
 #include "simeng/FlatMemoryInterface.hh"
 #include "simeng/pipeline/DecodeUnit.hh"
 #include "simeng/pipeline/ExecuteUnit.hh"
@@ -74,6 +73,9 @@ class Core : public simeng::Core {
 
   /** Handle requesting/execution of a load instruction. */
   void handleLoad(const std::shared_ptr<Instruction>& instruction);
+
+  /** Set traces to finished state if their instruction has been flushed */
+  void flushTraces(const bool atDecode);
 
   /** The process memory. */
   MemoryInterface& dataMemory_;

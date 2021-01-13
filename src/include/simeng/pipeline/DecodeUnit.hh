@@ -1,7 +1,9 @@
 #pragma once
 
 #include "simeng/arch/Architecture.hh"
+#include "simeng/control.hh"
 #include "simeng/pipeline/PipelineBuffer.hh"
+#include "simeng/trace.hh"
 
 namespace simeng {
 namespace pipeline {

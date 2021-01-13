@@ -5,8 +5,6 @@
 #include "simeng/RegisterValue.hh"
 #include "simeng/span.hh"
 
-#include <vector>
-
 using InstructionException = short;
 
 namespace simeng {
@@ -161,6 +159,12 @@ class Instruction {
    * executing it. */
   uint16_t getStallCycles() const;
 
+  /** Set this instructions' trace ID. */
+  void setTraceId(uint64_t trId);
+
+  /** Retrieve this instructions' trace ID. */
+  uint64_t getTraceId() const;
+
  protected:
   /** Whether an exception has been encountered. */
   bool exceptionEncountered_ = false;
@@ -202,6 +206,11 @@ class Instruction {
   /** The number of cycles this instruction will stall the unit executing it
    * for. */
   uint16_t stallCycles_ = 1;
+
+  // Traces
+  /** This instruction's trace ID; a higher ID represents a chronologically
+   * newer instruction. */
+  uint64_t traceId_ = 0;
 };
 
 }  // namespace simeng

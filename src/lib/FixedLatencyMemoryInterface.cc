@@ -17,6 +17,11 @@ void FixedLatencyMemoryInterface::tick() {
 
     if (request.readyAt > tickCounter_) {
       // Head of queue isn't ready yet; end cycle
+      // Stalled.fixedLatencyMemoryUnready
+      probeTrace newProbe = {10, trace_cycle, 0};
+      Trace* newTrace = new Trace;
+      newTrace->setProbeTraces(newProbe);
+      probeList_->push_back(newTrace);
       break;
     }
 
@@ -34,6 +39,11 @@ void FixedLatencyMemoryInterface::tick() {
       // Read: read data into `completedReads`
       if (target.address + target.size > size_) {
         // Read outside of memory; return an invalid value to signal a fault
+        // Exception.fixedLatencyMemoryRead
+        probeTrace newProbe = {21, trace_cycle, 0};
+        Trace* newTrace = new Trace;
+        newTrace->setProbeTraces(newProbe);
+        probeList.push_back(newTrace);
         completedReads_.push_back({target, RegisterValue(), request.requestId});
       } else {
         const char* ptr = memory_ + target.address;

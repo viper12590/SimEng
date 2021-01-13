@@ -36,6 +36,7 @@ set(SIMENG_SOURCES
     RegisterFileSet.cc
     RegisterValue.cc
     VariableLatencyMemoryInterface.cc
+    trace.cc
     )
 
 configure_file(${PROJECT_SOURCE_DIR}/external/capstone/arch/AArch64/AArch64GenInstrInfo.inc AArch64GenInstrInfo.inc COPYONLY)
