@@ -34,6 +34,19 @@ void DecodeUnit::tick() {
 
     auto& uop = (output_.getTailSlots()[slot] = std::move(macroOp[0]));
 
+    // Store cycle at which instruction was decoded
+    if (uop->getTraceId() != 0) {
+      std::map<uint64_t, Trace*>::iterator it =
+          traceMap.find(uop->getTraceId());
+      if (it != traceMap.end()) {
+        cycleTrace tr = it->second->getCycleTraces();
+        if (tr.finished != 1) {
+          tr.decode = trace_cycle;
+          it->second->setCycleTraces(tr);
+        }
+      }
+    }
+
     input_.getHeadSlots()[slot].clear();
 
     // Check preliminary branch prediction results now that the instruction is
@@ -50,6 +63,12 @@ void DecodeUnit::tick() {
         // Non-branch incorrectly predicted as a branch; let the predictor know
         predictor_.update(uop, false, pc_);
       }
+
+      // Branch.decode.earlyMisprediction
+      probeTrace newProbe = {13, trace_cycle, uop->getTraceId()};
+      Trace* newTrace = new Trace;
+      newTrace->setProbeTraces(newProbe);
+      probeList.push_back(newTrace);
 
       // Skip processing remaining macro-ops, as they need to be flushed
       break;
