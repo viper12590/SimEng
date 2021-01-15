@@ -28,6 +28,7 @@ set(SIMENG_SOURCES
     BTB_BWTPredictor.cc
     BTBPredictor.cc
     CMakeLists.txt
+    control.cc
     Elf.cc
     FixedLatencyMemoryInterface.cc
     FlatMemoryInterface.cc
