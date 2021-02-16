@@ -55,7 +55,7 @@ class RegressionTest : public ::testing::TestWithParam<CoreType> {
 
   /** Create an ISA instance from a kernel. */
   virtual std::unique_ptr<simeng::arch::Architecture> createArchitecture(
-      simeng::kernel::Linux& kernel) const = 0;
+      simeng::kernel::Linux& kernel, YAML::Node config) const = 0;
 
   /** Create a port allocator for an out-of-order core model. */
   virtual std::unique_ptr<simeng::pipeline::PortAllocator> createPortAllocator()

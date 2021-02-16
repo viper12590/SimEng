@@ -186,7 +186,7 @@ int main(int argc, char** argv) {
                                                 processMemorySize);
 
   // Create the architecture, with knowledge of the kernel
-  auto arch = simeng::arch::aarch64::Architecture(kernel);
+  auto arch = simeng::arch::aarch64::Architecture(kernel, config);
 
   auto predictor = simeng::BTBPredictor(
       config["Branch-Predictor"]["BTB-bitlength"].as<uint8_t>());

@@ -17,7 +17,7 @@ namespace aarch64 {
 /* A basic ARMv8-a implementation of the `Architecture` interface. */
 class Architecture : public arch::Architecture {
  public:
-  Architecture(kernel::Linux& kernel);
+  Architecture(kernel::Linux& kernel, YAML::Node config);
   ~Architecture();
   /** Pre-decode instruction memory into a macro-op of `Instruction`
    * instances. Returns the number of bytes consumed to produce it (always 4),
@@ -73,6 +73,9 @@ class Architecture : public arch::Architecture {
 
   /** A reference to a Linux kernel object to forward syscalls to. */
   kernel::Linux& linux_;
+
+  /** The vector length used by the SVE extension in bits. */
+  uint16_t VL;
 };
 
 }  // namespace aarch64

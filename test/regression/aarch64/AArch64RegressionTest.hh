@@ -1,7 +1,6 @@
 #pragma once
 
 #include "RegressionTest.hh"
-
 #include "simeng/arch/aarch64/Architecture.hh"
 #include "simeng/arch/aarch64/Instruction.hh"
 
@@ -65,7 +64,7 @@ class AArch64RegressionTest : public RegressionTest {
 
   /** Create an ISA instance from a kernel. */
   virtual std::unique_ptr<simeng::arch::Architecture> createArchitecture(
-      simeng::kernel::Linux& kernel) const override;
+      simeng::kernel::Linux& kernel, YAML::Node config) const override;
 
   /** Create a port allocator for an out-of-order core model. */
   virtual std::unique_ptr<simeng::pipeline::PortAllocator> createPortAllocator()

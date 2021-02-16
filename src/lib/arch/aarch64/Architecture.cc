@@ -13,7 +13,8 @@ namespace aarch64 {
 std::unordered_map<uint32_t, Instruction> Architecture::decodeCache;
 std::forward_list<InstructionMetadata> Architecture::metadataCache;
 
-Architecture::Architecture(kernel::Linux& kernel) : linux_(kernel) {
+Architecture::Architecture(kernel::Linux& kernel, YAML::Node config)
+    : linux_(kernel) {
   if (cs_open(CS_ARCH_ARM64, CS_MODE_ARM, &capstoneHandle) != CS_ERR_OK) {
     std::cerr << "Could not create capstone handle" << std::endl;
     exit(1);
@@ -28,6 +29,9 @@ Architecture::Architecture(kernel::Linux& kernel) : linux_(kernel) {
   systemRegisterMap_[ARM64_SYSREG_TPIDR_EL0] = systemRegisterMap_.size();
   systemRegisterMap_[ARM64_SYSREG_MIDR_EL1] = systemRegisterMap_.size();
   systemRegisterMap_[ARM64_SYSREG_CNTVCT_EL0] = systemRegisterMap_.size();
+
+  // Read in necessary config options
+  VL = config["Core"]["Vector-Length"].as<uint16_t>();
 }
 Architecture::~Architecture() { cs_close(&capstoneHandle); }
 

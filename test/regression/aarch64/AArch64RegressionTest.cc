@@ -10,8 +10,9 @@ void AArch64RegressionTest::run(const char* source) {
 }
 
 std::unique_ptr<simeng::arch::Architecture>
-AArch64RegressionTest::createArchitecture(simeng::kernel::Linux& kernel) const {
-  return std::make_unique<Architecture>(kernel);
+AArch64RegressionTest::createArchitecture(simeng::kernel::Linux& kernel,
+                                          YAML::Node config) const {
+  return std::make_unique<Architecture>(kernel, config);
 }
 
 std::unique_ptr<simeng::pipeline::PortAllocator>
