@@ -136,7 +136,7 @@ void FetchUnit::tick() {
     } else {
       macroOp[0]->setTraceId(traceId);
       // Denote id has been assigned/used
-      traceId++;
+      // traceId++;
     }
 
     // Increment the offset, decrement available bytes
