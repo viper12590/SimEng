@@ -14,7 +14,7 @@ std::unordered_map<uint32_t, Instruction> Architecture::decodeCache;
 std::forward_list<InstructionMetadata> Architecture::metadataCache;
 
 Architecture::Architecture(kernel::Linux& kernel, YAML::Node config)
-    : linux_(kernel) {
+    : linux_(kernel), VL_(config["Core"]["Vector-Length"].as<uint64_t>()) {
   if (cs_open(CS_ARCH_ARM64, CS_MODE_ARM, &capstoneHandle) != CS_ERR_OK) {
     std::cerr << "Could not create capstone handle" << std::endl;
     exit(1);
@@ -29,11 +29,12 @@ Architecture::Architecture(kernel::Linux& kernel, YAML::Node config)
   systemRegisterMap_[ARM64_SYSREG_TPIDR_EL0] = systemRegisterMap_.size();
   systemRegisterMap_[ARM64_SYSREG_MIDR_EL1] = systemRegisterMap_.size();
   systemRegisterMap_[ARM64_SYSREG_CNTVCT_EL0] = systemRegisterMap_.size();
-
-  // Read in necessary config options
-  VL = config["Core"]["Vector-Length"].as<uint16_t>();
 }
-Architecture::~Architecture() { cs_close(&capstoneHandle); }
+Architecture::~Architecture() {
+  cs_close(&capstoneHandle);
+  decodeCache.clear();
+  metadataCache.clear();
+}
 
 uint8_t Architecture::predecode(const void* ptr, uint8_t bytesAvailable,
                                 uint64_t instructionAddress,
@@ -161,6 +162,8 @@ ProcessStateChange Architecture::getUpdateState() const {
 
   return changes;
 }
+
+uint64_t Architecture::getVectorLength() const { return VL_; }
 
 std::pair<uint8_t, uint8_t> Architecture::getLatencies(
     InstructionMetadata& metadata) const {

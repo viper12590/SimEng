@@ -49,6 +49,9 @@ class Architecture : public arch::Architecture {
   /** Returns the maximum size of a valid instruction in bytes. */
   uint8_t getMaxInstructionSize() const override;
 
+  /** Returns the current vector length set by the provided configuration. */
+  uint64_t getVectorLength() const;
+
  private:
   /** Retrieve the latencies for the instruction represented by the supplied
    * metadata. Returns a pair of values {latency, stallCycles}, representing the
@@ -75,7 +78,7 @@ class Architecture : public arch::Architecture {
   kernel::Linux& linux_;
 
   /** The vector length used by the SVE extension in bits. */
-  uint16_t VL;
+  uint64_t VL_;
 };
 
 }  // namespace aarch64
