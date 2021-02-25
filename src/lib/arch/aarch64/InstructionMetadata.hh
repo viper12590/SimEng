@@ -3,6 +3,7 @@
 #include <string>
 
 #include "capstone/capstone.h"
+#include "simeng/arch/aarch64/Architecture.hh"
 
 namespace simeng {
 namespace arch {

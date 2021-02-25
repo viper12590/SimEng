@@ -3,7 +3,6 @@
 #include <tuple>
 
 #include "InstructionMetadata.hh"
-#include "simeng/arch/aarch64/Architecture.hh"
 #include "simeng/arch/aarch64/Instruction.hh"
 
 namespace simeng {
@@ -478,10 +477,9 @@ void Instruction::execute() {
       // Divide by 512 as we're operating in blocks of 64-bits
       // and each predicate bit represents 8 bits in Z registers or
       // more generally the VL notion.
-      const uint16_t partition_num = VL_bits / 512;
+      const uint16_t partition_num = (int)((VL_bits - 1) / 512);
       uint64_t out[4] = {0, 0, 0, 0};
-
-      for (int i = 0; i < partition_num; i++) {
+      for (int i = 0; i < partition_num + 1; i++) {
         // AND the two source registers in blocks of 64-bits with
         // the governing predicate as a mask.
         out[i] = g[i] & (n[i] & m[i]);
@@ -771,11 +769,11 @@ void Instruction::execute() {
       uint8_t N = (out[0] & 1);
       uint8_t Z = 1;
       // (int)(VL_bits - 1)/512 derives which block of 64-bits within the
-      // predicate register we're working in. std::pow(2, (VL_bits / 8) - 1)
-      // derives a 1 in the last position of the current predicate. Both
+      // predicate register we're working in. std::pow(2, ((VL_bits / 8) - 4) %
+      // 64) derives a 1 in the last position of the current predicate. Both
       // dictated by vector length.
-      uint8_t C =
-          !(out[(int)((VL_bits - 1) / 512)] & (uint64_t)std::pow(2, 64 - 4));
+      uint8_t C = !(out[(int)((VL_bits - 1) / 512)] &
+                    (uint64_t)std::pow(2, ((VL_bits / 8) - 4) % 64));
       for (int i = 0; i < (int)((VL_bits - 1) / 512) + 1; i++) {
         if (out[i]) {
           Z = 0;
@@ -944,8 +942,8 @@ void Instruction::execute() {
       break;
     }
     case Opcode::AArch64_DUP_ZZI_D: {  // dup zd.d, zn.d[#imm]
-      const uint8_t index =
-          static_cast<uint8_t>(metadata.operands[1].vector_index);
+      const uint16_t index =
+          static_cast<uint16_t>(metadata.operands[1].vector_index);
       const uint64_t* n = operands[0].getAsVector<uint64_t>();
 
       const uint16_t partition_num = VL_bits / 64;
@@ -963,8 +961,8 @@ void Instruction::execute() {
       break;
     }
     case Opcode::AArch64_DUP_ZZI_S: {  // dup zd.s, zn.s[#imm]
-      const uint8_t index =
-          static_cast<uint8_t>(metadata.operands[1].vector_index);
+      const uint16_t index =
+          static_cast<uint16_t>(metadata.operands[1].vector_index);
       const uint32_t* n = operands[0].getAsVector<uint32_t>();
 
       const uint16_t partition_num = VL_bits / 32;
@@ -1108,7 +1106,7 @@ void Instruction::execute() {
       float out[64] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           out[i] = ::fabs(n[i]);
         } else {
@@ -1139,7 +1137,7 @@ void Instruction::execute() {
       double out[2] = {operands[2].get<double>(), 0.0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 8));
+        uint64_t shifted_active = std::pow(2, (i * 8) % 64);
         if (p[i / 8] & shifted_active) {
           out[0] += m[i];
         }
@@ -1190,7 +1188,7 @@ void Instruction::execute() {
       double out[32] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 8));
+        uint64_t shifted_active = std::pow(2, (i * 8) % 64);
         if (p[i / 8] & shifted_active) {
           out[i] = b[i] + c[i];
         } else {
@@ -1521,7 +1519,7 @@ void Instruction::execute() {
       int32_t out[64] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 8));
+        uint64_t shifted_active = std::pow(2, (i * 8) % 64);
         if (p[i / 8] & shifted_active) {
           if (b[i] > 2147483647) {
             out[(2 * i)] = 2147483647;
@@ -1572,7 +1570,7 @@ void Instruction::execute() {
       double out[32] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 8));
+        uint64_t shifted_active = std::pow(2, (i * 8) % 64);
         if (p[i / 8] & shifted_active) {
           out[i] = b[i] / c[i];
         } else {
@@ -1640,7 +1638,7 @@ void Instruction::execute() {
       float out[64] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           out[i] = c[i] + (a[i] * b[i]);
         } else {
@@ -1727,7 +1725,7 @@ void Instruction::execute() {
       double out[32] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 8));
+        uint64_t shifted_active = std::pow(2, (i * 8) % 64);
         if (p[i / 8] & shifted_active) {
           out[i] = a[i] + (b[i] * c[i]);
         } else {
@@ -1747,7 +1745,7 @@ void Instruction::execute() {
       float out[64] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           out[i] = a[i] + (b[i] * c[i]);
         } else {
@@ -1786,7 +1784,7 @@ void Instruction::execute() {
       float out[64] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           out[i] = a[i] + (-b[i] * c[i]);
         } else {
@@ -1882,7 +1880,7 @@ void Instruction::execute() {
       float out[64] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           out[i] = c[i] + (-a[i] * b[i]);
         } else {
@@ -1979,7 +1977,7 @@ void Instruction::execute() {
       double out[32] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 8));
+        uint64_t shifted_active = std::pow(2, (i * 8) % 64);
         if (p[i / 8] & shifted_active) {
           out[i] = n[i] * fp;
         } else {
@@ -1998,7 +1996,7 @@ void Instruction::execute() {
       float out[64] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           out[i] = n[i] * fp;
         } else {
@@ -2017,7 +2015,7 @@ void Instruction::execute() {
       double out[32] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 8));
+        uint64_t shifted_active = std::pow(2, (i * 8) % 64);
         if (p[i / 8] & shifted_active) {
           out[i] = n[i] * m[i];
         } else {
@@ -2036,7 +2034,7 @@ void Instruction::execute() {
       float out[64] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           out[i] = n[i] * m[i];
         } else {
@@ -2065,7 +2063,7 @@ void Instruction::execute() {
       double out[32] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 8));
+        uint64_t shifted_active = std::pow(2, (i * 8) % 64);
         if (p[i / 8] & shifted_active) {
           out[i] = -n[i];
         } else {
@@ -2084,7 +2082,7 @@ void Instruction::execute() {
       float out[64] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           out[i] = -n[i];
         } else {
@@ -2146,7 +2144,7 @@ void Instruction::execute() {
       float out[64] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           out[i] = ::sqrt(n[i]);
         } else {
@@ -2276,7 +2274,7 @@ void Instruction::execute() {
     case Opcode::AArch64_LD1RD_IMM: {  // ld1rd {zt.d}, pg/z, [xn, #imm]
       const uint16_t partition_num = VL_bits / 64;
       uint64_t out[32] = {0};
-      uint8_t index = 0;
+      uint16_t index = 0;
       // Check if any lanes are active, otherwise set all to 0 and break early
       bool active = false;
       const uint64_t* p = operands[0].getAsVector<uint64_t>();
@@ -2303,7 +2301,7 @@ void Instruction::execute() {
     case Opcode::AArch64_LD1RW_IMM: {  // ld1rw {zt.s}, pg/z, [xn, #imm]
       const uint16_t partition_num = VL_bits / 32;
       uint32_t out[64] = {0};
-      uint8_t index = 0;
+      uint16_t index = 0;
       // Check if any lanes are active, otherwise set all to 0 and break early
       bool active = false;
       const uint64_t* p = operands[0].getAsVector<uint64_t>();
@@ -2343,11 +2341,10 @@ void Instruction::execute() {
     case Opcode::AArch64_LD1B: {  // ld1b  {zt.b}, pg/z, [xn, xm]
       const uint64_t* p = operands[0].getAsVector<uint64_t>();
       const uint16_t partition_num = VL_bits / 8;
-      uint8_t index = 0;
+      uint16_t index = 0;
       uint8_t out[256] = {0};
-
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, i);
+        uint64_t shifted_active = std::pow(2, i % 64);
         if (p[i / 64] & shifted_active) {
           out[i] = memoryData[index].get<uint8_t>();
           index++;
@@ -2362,11 +2359,11 @@ void Instruction::execute() {
     case Opcode::AArch64_LD1D: {  // ld1d  {zt.d}, pg/z, [xn, xm, lsl #3]
       const uint64_t* p = operands[0].getAsVector<uint64_t>();
       const uint16_t partition_num = VL_bits / 64;
-      uint8_t index = 0;
+      uint16_t index = 0;
       uint64_t out[32] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 8));
+        uint64_t shifted_active = std::pow(2, (i * 8) % 64);
         if (p[i / 8] & shifted_active) {
           out[i] = memoryData[index].get<uint64_t>();
           index++;
@@ -2382,11 +2379,11 @@ void Instruction::execute() {
                                            // mul vl}]
       const uint64_t* p = operands[0].getAsVector<uint64_t>();
       const uint16_t partition_num = VL_bits / 64;
-      uint8_t index = 0;
+      uint16_t index = 0;
       uint64_t out[32] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 8));
+        uint64_t shifted_active = std::pow(2, (i * 8) % 64);
         if (p[i / 8] & shifted_active) {
           out[i] = memoryData[index].get<uint64_t>();
           index++;
@@ -2401,11 +2398,11 @@ void Instruction::execute() {
     case Opcode::AArch64_LD1W: {  // ld1w  {zt.s}, pg/z, [xn, xm, lsl #2]
       const uint64_t* p = operands[0].getAsVector<uint64_t>();
       const uint16_t partition_num = VL_bits / 32;
-      uint8_t index = 0;
+      uint16_t index = 0;
       uint32_t out[64] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           out[i] = memoryData[index].get<uint32_t>();
           index++;
@@ -2421,11 +2418,11 @@ void Instruction::execute() {
                                            // mul vl}]
       const uint64_t* p = operands[0].getAsVector<uint64_t>();
       const uint16_t partition_num = VL_bits / 32;
-      uint8_t index = 0;
+      uint16_t index = 0;
       uint32_t out[64] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           out[i] = memoryData[index].get<uint32_t>();
           index++;
@@ -2738,7 +2735,7 @@ void Instruction::execute() {
       break;
     }
     case Opcode::AArch64_LDR_PXI: {  // ldr pt, [xn{, #imm, mul vl}]
-      const uint64_t PL_bits = 64;
+      const uint64_t PL_bits = VL_bits / 8;
       const uint16_t partition_num = PL_bits / 8;
 
       uint64_t out[4] = {0};
@@ -2746,7 +2743,7 @@ void Instruction::execute() {
         uint8_t data = memoryData[i].get<uint8_t>();
         for (int j = 0; j < 8; j++) {
           out[i / 8] |=
-              (data & (1 << j)) ? (uint64_t)std::pow(2, (j + (i * 8))) : 0;
+              (data & (1 << j)) ? (uint64_t)std::pow(2, (j + (i * 8)) % 64) : 0;
         }
       }
 
@@ -3029,10 +3026,10 @@ void Instruction::execute() {
       // Divide by 512 as we're operating in blocks of 64-bits
       // and each predicate bit represents 8 bits in Z registers or
       // more generally the VL notion.
-      const uint16_t partition_num = VL_bits / 512;
+      const uint16_t partition_num = (int)((VL_bits - 1) / 512);
       uint64_t out[4] = {0, 0, 0, 0};
 
-      for (int i = 0; i < partition_num; i++) {
+      for (int i = 0; i < partition_num + 1; i++) {
         // Or the two source registers in blocks of 64-bits with
         // the governing predicate as a mask.
         out[i] = g[i] & (n[i] | m[i]);
@@ -3098,7 +3095,7 @@ void Instruction::execute() {
       uint64_t out[4] = {0, 0, 0, 0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, i);
+        uint64_t shifted_active = std::pow(2, i % 64);
         out[i / 64] |= shifted_active;
       }
 
@@ -3110,7 +3107,7 @@ void Instruction::execute() {
       uint64_t out[4] = {0, 0, 0, 0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 8));
+        uint64_t shifted_active = std::pow(2, (i * 8) % 64);
         out[i / 8] |= shifted_active;
       }
 
@@ -3122,7 +3119,7 @@ void Instruction::execute() {
       uint64_t out[4] = {0, 0, 0, 0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         out[i / 16] |= shifted_active;
       }
       results[0] = out;
@@ -3132,11 +3129,11 @@ void Instruction::execute() {
       const uint64_t* n = operands[0].getAsVector<uint64_t>();
       const uint16_t partition_num = VL_bits / 8;
       uint64_t out[4] = {0, 0, 0, 0};
-      uint8_t index = 0;
+      uint16_t index = 0;
 
       for (int i = partition_num / 2; i < partition_num; i++) {
         if (n[i / 64] & ((uint64_t)std::pow(2, (i % 64)))) {
-          out[index / 32] |= (uint64_t)std::pow(2, (index * 2));
+          out[index / 32] |= (uint64_t)std::pow(2, (index * 2) % 64);
         }
         index++;
       }
@@ -3151,7 +3148,7 @@ void Instruction::execute() {
 
       for (int i = 0; i < partition_num / 2; i++) {
         if (n[i / 64] & ((uint64_t)std::pow(2, (i % 64)))) {
-          out[i / 32] |= (uint64_t)std::pow(2, (i * 2));
+          out[i / 32] |= (uint64_t)std::pow(2, (i * 2) % 64);
         }
       }
 
@@ -3294,7 +3291,7 @@ void Instruction::execute() {
       uint64_t out[32] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 8));
+        uint64_t shifted_active = std::pow(2, (i * 8) % 64);
         if (p[i / 8] & shifted_active) {
           out[i] = n[i];
         } else {
@@ -3313,7 +3310,7 @@ void Instruction::execute() {
       uint32_t out[64] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           out[i] = n[i];
         } else {
@@ -3358,7 +3355,7 @@ void Instruction::execute() {
       int32_t out[64] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           out[i] = std::max(n[i], m[i]);
         } else {
@@ -3387,7 +3384,7 @@ void Instruction::execute() {
       int32_t out[64] = {0};
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           out[i] = std::min(n[i], m[i]);
         } else {
@@ -3406,7 +3403,7 @@ void Instruction::execute() {
       int32_t out = INT32_MAX;
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           out = std::min(out, n[i]);
         }
@@ -3466,10 +3463,10 @@ void Instruction::execute() {
       const uint8_t* d = operands[0].getAsVector<uint8_t>();
       const uint64_t* p = operands[1].getAsVector<uint64_t>();
       const uint16_t partition_num = VL_bits / 8;
-      uint8_t index = 0;
+      uint16_t index = 0;
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, i);
+        uint64_t shifted_active = std::pow(2, i % 64);
         if (p[i / 64] & shifted_active) {
           memoryData[index] = d[i];
           index++;
@@ -3482,10 +3479,10 @@ void Instruction::execute() {
       const uint64_t* d = operands[0].getAsVector<uint64_t>();
       const uint64_t* p = operands[1].getAsVector<uint64_t>();
       const uint16_t partition_num = VL_bits / 64;
-      uint8_t index = 0;
+      uint16_t index = 0;
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 8));
+        uint64_t shifted_active = std::pow(2, (i * 8) % 64);
         if (p[i / 8] & shifted_active) {
           memoryData[index] = d[i];
           index++;
@@ -3498,10 +3495,10 @@ void Instruction::execute() {
       const uint64_t* d = operands[0].getAsVector<uint64_t>();
       const uint64_t* p = operands[1].getAsVector<uint64_t>();
       const uint16_t partition_num = VL_bits / 64;
-      uint8_t index = 0;
+      uint16_t index = 0;
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 8));
+        uint64_t shifted_active = std::pow(2, (i * 8) % 64);
         if (p[i / 8] & shifted_active) {
           memoryData[index] = d[i];
           index++;
@@ -3514,10 +3511,10 @@ void Instruction::execute() {
       const uint32_t* d = operands[0].getAsVector<uint32_t>();
       const uint64_t* p = operands[1].getAsVector<uint64_t>();
       const uint16_t partition_num = VL_bits / 32;
-      uint8_t index = 0;
+      uint16_t index = 0;
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           memoryData[index] = d[i];
           index++;
@@ -3530,10 +3527,10 @@ void Instruction::execute() {
       const uint32_t* d = operands[0].getAsVector<uint32_t>();
       const uint64_t* p = operands[1].getAsVector<uint64_t>();
       const uint16_t partition_num = VL_bits / 32;
-      uint8_t index = 0;
+      uint16_t index = 0;
 
       for (int i = 0; i < partition_num; i++) {
-        uint64_t shifted_active = std::pow(2, (i * 4));
+        uint64_t shifted_active = std::pow(2, (i * 4) % 64);
         if (p[i / 16] & shifted_active) {
           memoryData[index] = d[i];
           index++;
@@ -3770,7 +3767,7 @@ void Instruction::execute() {
       break;
     }
     case Opcode::AArch64_STR_PXI: {  // str pt, [xn{, #imm, mul vl}]
-      const uint64_t PL_bits = 64;
+      const uint64_t PL_bits = VL_bits / 8;
       const uint16_t partition_num = PL_bits / 8;
       const uint8_t* p = operands[0].getAsVector<uint8_t>();
 
@@ -4175,12 +4172,12 @@ void Instruction::execute() {
       const uint64_t m = operands[1].get<uint64_t>();
       const uint16_t partition_num = VL_bits / 8;
       uint64_t out[4] = {0, 0, 0, 0};
-      uint8_t index = 0;
+      uint16_t index = 0;
 
       for (int i = 0; i < partition_num; i++) {
         // Determine whether lane should be active and shift to align with
         // element in predicate register.
-        uint64_t shifted_active = (n + i) < m ? std::pow(2, i) : 0;
+        uint64_t shifted_active = (n + i) < m ? std::pow(2, i % 64) : 0;
         out[index / 64] = out[index / 64] | shifted_active;
         index++;
       }
@@ -4188,11 +4185,11 @@ void Instruction::execute() {
       uint8_t N = (out[0] & 1);
       uint8_t Z = 1;
       // (int)(VL_bits - 1)/512 derives which block of 64-bits within the
-      // predicate register we're working in. std::pow(2, (VL_bits / 8) - 1)
-      // derives a 1 in the last position of the current predicate. Both
+      // predicate register we're working in. std::pow(2, ((VL_bits / 8) - 1) %
+      // 64) derives a 1 in the last position of the current predicate. Both
       // dictated by vector length.
-      uint8_t C =
-          !(out[(int)((VL_bits - 1) / 512)] & (uint64_t)std::pow(2, 64 - 1));
+      uint8_t C = !(out[(int)((VL_bits - 1) / 512)] &
+                    (uint64_t)std::pow(2, ((VL_bits / 8) - 1) % 64));
       for (int i = 0; i < (int)((VL_bits - 1) / 512) + 1; i++) {
         if (out[i]) {
           Z = 0;
@@ -4208,12 +4205,12 @@ void Instruction::execute() {
       const uint64_t m = operands[1].get<uint64_t>();
       const uint16_t partition_num = VL_bits / 64;
       uint64_t out[4] = {0, 0, 0, 0};
-      uint8_t index = 0;
+      uint16_t index = 0;
 
       for (int i = 0; i < partition_num; i++) {
         // Determine whether lane should be active and shift to align with
         // element in predicate register.
-        uint64_t shifted_active = (n + i) < m ? std::pow(2, (i * 8)) : 0;
+        uint64_t shifted_active = (n + i) < m ? std::pow(2, (i * 8) % 64) : 0;
         out[index / 8] = out[index / 8] | shifted_active;
         index++;
       }
@@ -4221,11 +4218,11 @@ void Instruction::execute() {
       uint8_t N = (out[0] & 1);
       uint8_t Z = 1;
       // (int)(VL_bits - 1)/512 derives which block of 64-bits within the
-      // predicate register we're working in. std::pow(2, (VL_bits / 8) - 1)
-      // derives a 1 in the last position of the current predicate. Both
+      // predicate register we're working in. std::pow(2, ((VL_bits / 8) - 8) %
+      // 64) derives a 1 in the last position of the current predicate. Both
       // dictated by vector length.
-      uint8_t C =
-          !(out[(int)((VL_bits - 1) / 512)] & (uint64_t)std::pow(2, 64 - 8));
+      uint8_t C = !(out[(int)((VL_bits - 1) / 512)] &
+                    (uint64_t)std::pow(2, ((VL_bits / 8) - 8) % 64));
       for (int i = 0; i < (int)((VL_bits - 1) / 512) + 1; i++) {
         if (out[i]) {
           Z = 0;
@@ -4241,12 +4238,12 @@ void Instruction::execute() {
       const uint64_t m = operands[1].get<uint64_t>();
       const uint16_t partition_num = VL_bits / 32;
       uint64_t out[4] = {0, 0, 0, 0};
-      uint8_t index = 0;
+      uint16_t index = 0;
 
       for (int i = 0; i < partition_num; i++) {
         // Determine whether lane should be active and shift to align with
         // element in predicate register.
-        uint64_t shifted_active = (n + i) < m ? std::pow(2, (i * 4)) : 0;
+        uint64_t shifted_active = (n + i) < m ? std::pow(2, (i * 4) % 64) : 0;
         out[index / 16] = out[index / 16] | shifted_active;
         index++;
       }
@@ -4254,11 +4251,11 @@ void Instruction::execute() {
       uint8_t N = (out[0] & 1);
       uint8_t Z = 1;
       // (int)(VL_bits - 1)/512 derives which block of 64-bits within the
-      // predicate register we're working in. std::pow(2, (VL_bits / 8) - 1)
-      // derives a 1 in the last position of the current predicate. Both
+      // predicate register we're working in. std::pow(2, ((VL_bits / 8) - 4) %
+      // 64) derives a 1 in the last position of the current predicate. Both
       // dictated by vector length.
-      uint8_t C =
-          !(out[(int)((VL_bits - 1) / 512)] & (uint64_t)std::pow(2, 64 - 4));
+      uint8_t C = !(out[(int)((VL_bits - 1) / 512)] &
+                    (uint64_t)std::pow(2, ((VL_bits / 8) - 4) % 64));
       for (int i = 0; i < (int)((VL_bits - 1) / 512) + 1; i++) {
         if (out[i]) {
           Z = 0;
