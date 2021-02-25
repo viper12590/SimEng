@@ -42,7 +42,7 @@ YAML::Node RegressionTest::generateConfig() {
   YAML::Node config = YAML::Load(
       "{Core: {"
       "Simulation-Mode: outoforder, Clock-Frequency: 2.5,"
-      "Fetch-Block-Alignment-Bits: 5, Vector-Length: 512"
+      "Fetch-Block-Alignment-Bits: 5"
       "}, Register-Set: {"
       "GeneralPurpose-Count: 154, FloatingPoint/SVE-Count: 90,"
       "Predicate-Count: 48, Conditional-Count: 128"
@@ -65,6 +65,16 @@ YAML::Node RegressionTest::generateConfig() {
       "{Pipelined: True, Blocking-Group: 0},"
       "{Pipelined: True, Blocking-Group: 0}"
       "]}");
+  YAML::Node additionalConfig = std::get<1>(GetParam());
+  // Merge specific aarch64 config options
+  if (additionalConfig["Vector-Length"].IsDefined() &&
+      !(additionalConfig["Vector-Length"].IsNull())) {
+    config["Core"]["Vector-Length"] =
+        additionalConfig["Vector-Length"].as<uint64_t>();
+  } else {
+    config["Core"]["Vector-Length"] = 512;
+  }
+
   return config;
 }
 
@@ -126,7 +136,7 @@ void RegressionTest::run(const char* source, const char* triple) {
   simeng::BTBPredictor predictor(8);
 
   // Create the core model
-  switch (GetParam()) {
+  switch (std::get<0>(GetParam())) {
     case EMULATION:
       core_ = std::make_unique<simeng::models::emulation::Core>(
           instructionMemory, *flatDataMemory, entryPoint, processMemorySize_,

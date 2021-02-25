@@ -1,7 +1,7 @@
-#include "AArch64RegressionTest.hh"
-
 #include <cstring>
 #include <fstream>
+
+#include "AArch64RegressionTest.hh"
 
 namespace {
 
@@ -230,8 +230,11 @@ TEST_P(Syscall, stdout) {
   EXPECT_EQ(getGeneralRegister<uint64_t>(0), sizeof(str) - 1);
 }
 
-INSTANTIATE_TEST_SUITE_P(AArch64, Syscall,
-                         ::testing::Values(EMULATION, INORDER, OUTOFORDER),
-                         coreTypeToString);
+INSTANTIATE_TEST_SUITE_P(
+    AArch64, Syscall,
+    ::testing::Values(std::make_tuple(EMULATION, YAML::Load("{}")),
+                      std::make_tuple(INORDER, YAML::Load("{}")),
+                      std::make_tuple(OUTOFORDER, YAML::Load("{}"))),
+    paramToString);
 
 }  // namespace

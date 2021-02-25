@@ -266,7 +266,9 @@ TEST_P(InstStore, stur) {
   EXPECT_EQ(getMemoryValue<double>(process_->getStackPointer() - 8), -0.125);
 }
 
-INSTANTIATE_TEST_SUITE_P(AArch64, InstStore, ::testing::Values(EMULATION),
-                         coreTypeToString);
+INSTANTIATE_TEST_SUITE_P(AArch64, InstStore,
+                         ::testing::Values(std::make_tuple(EMULATION,
+                                                           YAML::Load("{}"))),
+                         paramToString);
 
 }  // namespace

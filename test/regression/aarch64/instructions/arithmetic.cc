@@ -568,7 +568,9 @@ TEST_P(InstArithmetic, subsx) {
   EXPECT_EQ(getGeneralRegister<uint64_t>(3), (7ul << 48) - (255ul << 4));
 }
 
-INSTANTIATE_TEST_SUITE_P(AArch64, InstArithmetic, ::testing::Values(EMULATION),
-                         coreTypeToString);
+INSTANTIATE_TEST_SUITE_P(AArch64, InstArithmetic,
+                         ::testing::Values(std::make_tuple(EMULATION,
+                                                           YAML::Load("{}"))),
+                         paramToString);
 
 }  // namespace

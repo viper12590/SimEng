@@ -15,21 +15,6 @@
 /** The different types of core model that can be used in tests. */
 enum CoreType { EMULATION, INORDER, OUTOFORDER };
 
-/** A helper function to convert a `CoreType` to a human-readable string. */
-inline std::string coreTypeToString(
-    const testing::TestParamInfo<CoreType> val) {
-  switch (val.param) {
-    case EMULATION:
-      return "emulation";
-    case INORDER:
-      return "inorder";
-    case OUTOFORDER:
-      return "outoforder";
-    default:
-      return "unknown";
-  }
-}
-
 /** The base class for all regression tests.
  *
  * This is a googletest fixture which is parameterisable on a builtin core
@@ -41,14 +26,12 @@ inline std::string coreTypeToString(
  * methods are provided to query the state of the core and memory after
  * execution has completed.
  */
-class RegressionTest : public ::testing::TestWithParam<CoreType> {
+class RegressionTest
+    : public ::testing::TestWithParam<std::tuple<CoreType, YAML::Node>> {
  protected:
   virtual ~RegressionTest();
 
   virtual void TearDown() override;
-
-  /** Generate a default YAML-formatted configuration. */
-  YAML::Node generateConfig();
 
   /** Run the assembly in `source`, building it for the target `triple`. */
   void run(const char* source, const char* triple);
@@ -111,6 +94,9 @@ class RegressionTest : public ::testing::TestWithParam<CoreType> {
   bool programFinished_ = false;
 
  private:
+  /** Generate a default YAML-formatted configuration. */
+  YAML::Node generateConfig();
+
   /** Assemble test source to a flat binary for the given triple. */
   void assemble(const char* source, const char* triple);
 

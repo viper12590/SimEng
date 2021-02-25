@@ -1089,7 +1089,9 @@ TEST_P(InstFloat, ucvtf) {
   CHECK_NEON(11, float, {0.f, 0.f, 0.f, 0.f});
 }
 
-INSTANTIATE_TEST_SUITE_P(AArch64, InstFloat, ::testing::Values(EMULATION),
-                         coreTypeToString);
+INSTANTIATE_TEST_SUITE_P(AArch64, InstFloat,
+                         ::testing::Values(std::make_tuple(EMULATION,
+                                                           YAML::Load("{}"))),
+                         paramToString);
 
 }  // namespace

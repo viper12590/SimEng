@@ -1,8 +1,39 @@
 #pragma once
+#include <cmath>
 
 #include "RegressionTest.hh"
 #include "simeng/arch/aarch64/Architecture.hh"
 #include "simeng/arch/aarch64/Instruction.hh"
+
+/** A helper function to convert the supplied parameters of
+ * INSTANTIATE_TEST_SUITE_P into test name. */
+inline std::string paramToString(
+    const testing::TestParamInfo<std::tuple<CoreType, YAML::Node>> val) {
+  // Get core type as string
+  std::string coreString = "";
+  switch (std::get<0>(val.param)) {
+    case EMULATION:
+      coreString = "emulation";
+      break;
+    case INORDER:
+      coreString = "inorder";
+      break;
+    case OUTOFORDER:
+      coreString = "outoforder";
+      break;
+    default:
+      coreString = "unknown";
+      break;
+  }
+  // Get vector length as string
+  std::string vectorLengthString = "";
+  if (std::get<1>(val.param)["Vector-Length"].IsDefined() &&
+      !(std::get<1>(val.param)["Vector-Length"].IsNull())) {
+    vectorLengthString =
+        "WithVL" + std::get<1>(val.param)["Vector-Length"].as<std::string>();
+  }
+  return coreString + vectorLengthString;
+}
 
 /** A helper macro to run a snippet of Armv8 assembly code, returning from the
  * calling function if a fatal error occurs. Four bytes containing zeros are
