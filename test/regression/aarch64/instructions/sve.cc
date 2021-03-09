@@ -133,9 +133,12 @@ TEST_P(InstSve, dec) {
   // pattern = all
   RUN_AARCH64(R"(
     mov x0, #512
+    mov x1, #512
     decb x0
+    decb x1, all, mul #3
   )");
   EXPECT_EQ(getGeneralRegister<uint64_t>(0), 512 - (VL / 8));
+  EXPECT_EQ(getGeneralRegister<uint64_t>(1), 512 - (VL / 8) * 3);
 }
 
 TEST_P(InstSve, dupm) {

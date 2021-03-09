@@ -38,6 +38,8 @@ InstructionMetadata::InstructionMetadata(const cs_insn& insn)
       // adds incorrectly flags destination as READ
       operands[0].access = CS_AC_WRITE;
       break;
+    case Opcode::AArch64_ADDPL_XXI:
+      [[fallthrough]];
     case Opcode::AArch64_ADDVL_XXI:
       // lacking access specifiers for all operands
       operands[0].access = CS_AC_WRITE;
@@ -82,10 +84,21 @@ InstructionMetadata::InstructionMetadata(const cs_insn& insn)
       }
       break;
     }
-    case Opcode::AArch64_DECB_XPiI:
+    case Opcode::AArch64_DECB_XPiI: {
       // lacking access specifiers for destination
       operands[0].access = CS_AC_READ | CS_AC_WRITE;
+      std::string str(operandStr);
+      if (str.length() < 4) {
+        operandCount = 2;
+        operands[1].type = ARM64_OP_IMM;
+        operands[1].imm = 1;
+        operands[1].access = CS_AC_READ;
+        operands[1].shift = {ARM64_SFT_INVALID, 0};
+        operands[1].ext = ARM64_EXT_INVALID;
+        operands[1].vector_index = -1;
+      }
       break;
+    }
     case Opcode::AArch64_FMOVXDHighr:
       // FMOVXDHighr incorrectly flags destination as only WRITE
       operands[0].access = CS_AC_READ | CS_AC_WRITE;

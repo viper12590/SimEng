@@ -335,6 +335,14 @@ void Instruction::execute() {
       results[1] = result;
       break;
     }
+    case Opcode::AArch64_ADDPL_XXI: {  // addvl xd, xn, #imm
+      auto x = operands[0].get<uint64_t>();
+      auto y = static_cast<int64_t>(metadata.operands[2].imm);
+      // convert PL from VL_bits
+      const uint64_t PL = VL_bits / 64;
+      results[0] = x + (PL * y);
+      break;
+    }
     case Opcode::AArch64_ADDVL_XXI: {  // addvl xd, xn, #imm
       auto x = operands[0].get<uint64_t>();
       auto y = static_cast<int64_t>(metadata.operands[2].imm);
@@ -877,7 +885,8 @@ void Instruction::execute() {
     }
     case Opcode::AArch64_DECB_XPiI: {  // decb xdn{, pattern{, #imm}}
       const uint64_t n = operands[0].get<uint64_t>();
-      results[0] = n - (VL_bits / 8);
+      const uint8_t imm = static_cast<uint8_t>(metadata.operands[1].imm);
+      results[0] = n - ((VL_bits / 8) * imm);
       break;
     }
     case Opcode::AArch64_DUPM_ZI: {  // dupm zd.t, #imm
