@@ -63,7 +63,7 @@ void ModelConfig::validate() {
   }
   nodeChecker<uint16_t>(configFile_[root][subFields[3]], subFields[3],
                         {128, 256, 384, 512, 640, 768, 896, 1024, 1152, 1280,
-                         1480, 1536, 1664, 1792, 1920, 2048},
+                         1408, 1536, 1664, 1792, 1920, 2048},
                         ExpectedValue::UInteger, 512);
 
   subFields.clear();
