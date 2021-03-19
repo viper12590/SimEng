@@ -158,6 +158,10 @@ ProcessStateChange Architecture::getUpdateState() const {
   return changes;
 }
 
+void Architecture::forwardPMUInc(uint16_t event, uint64_t value) const {
+  linux_.pmuIncrement(event, value);
+}
+
 std::pair<uint8_t, uint8_t> Architecture::getLatencies(
     InstructionMetadata& metadata) const {
   const std::pair<uint8_t, uint8_t> FPSIMD_LATENCY = {6, 1};

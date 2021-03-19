@@ -49,6 +49,9 @@ class Architecture : public arch::Architecture {
   /** Returns the maximum size of a valid instruction in bytes. */
   uint8_t getMaxInstructionSize() const override;
 
+  /** Relays an increment in a perforamnce event to the linux kernel. */
+  void forwardPMUInc(uint16_t event, uint64_t value) const override;
+
  private:
   /** Retrieve the latencies for the instruction represented by the supplied
    * metadata. Returns a pair of values {latency, stallCycles}, representing the

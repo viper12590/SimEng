@@ -105,6 +105,7 @@ Core::Core(MemoryInterface& instructionMemory, MemoryInterface& dataMemory,
 
 void Core::tick() {
   ticks_++;
+  isa_.forwardPMUInc(0x11, 1);
 
   applyStateChange(isa_.getUpdateState());
 
@@ -149,7 +150,7 @@ void Core::tick() {
   }
 
   // Commit instructions from ROB
-  reorderBuffer_.commit(commitWidth_);
+  isa_.forwardPMUInc(0x8, reorderBuffer_.commit(commitWidth_));
 
   if (exceptionGenerated_) {
     handleException();
