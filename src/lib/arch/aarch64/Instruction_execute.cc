@@ -342,6 +342,12 @@ void Instruction::execute() {
       results[0] = x + (VL * y);
       break;
     }
+    case Opcode::AArch64_ADDVv4i32v: {  // addv sd, vn.4s
+      const uint32_t* n = operands[0].getAsVector<uint32_t>();
+      uint32_t out[4] = {n[0] + n[1] + n[2] + n[3], 0, 0, 0};
+      results[0] = out;
+      break;
+    }
     case Opcode::AArch64_ADDWri: {  // add wd, wn, #imm{, shift}
       auto x = operands[0].get<uint32_t>();
       auto y = shiftValue(static_cast<uint32_t>(metadata.operands[2].imm),
@@ -746,6 +752,16 @@ void Instruction::execute() {
       uint8_t out[16];
       for (int i = 0; i < 16; i++) {
         out[i] = (n[i] == 0) ? 0xFF : 0;
+      }
+      results[0] = out;
+      break;
+    }
+    case Opcode::AArch64_CMGTv4i32: {  // cmgt vd.4s, vn.4s, vm.4s
+      const uint32_t* n = operands[0].getAsVector<uint32_t>();
+      const uint32_t* m = operands[1].getAsVector<uint32_t>();
+      uint32_t out[4];
+      for (int i = 0; i < 4; i++) {
+        out[i] = (n[i] > m[i]) ? 0xFFFFFFFF : 0;
       }
       results[0] = out;
       break;
@@ -1553,7 +1569,7 @@ void Instruction::execute() {
             out[(2 * i)] = static_cast<int32_t>(std::trunc(b[i]));
           }
           // 4294967295 = 0xFFFFFFFF
-          out[(2 * i) + 1] = (b[i] < 0) ? 4294967295 : 0;
+          out[(2 * i) + 1] = (b[i] < 0) ? (int32_t)4294967295 : 0;
         } else {
           out[(2 * i)] = a[(2 * i)];
           out[(2 * i) + 1] = a[(2 * i) + 1];
