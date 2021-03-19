@@ -49,7 +49,7 @@ class Architecture : public arch::Architecture {
   /** Returns the maximum size of a valid instruction in bytes. */
   uint8_t getMaxInstructionSize() const override;
 
-  /** Relays an increment in a perforamnce event to the linux kernel. */
+  /** Relays the new count of the defined performance event to the kernel. */
   void forwardPMUInc(uint16_t event, uint64_t value) const override;
 
  private:
