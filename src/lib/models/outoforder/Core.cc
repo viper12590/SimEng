@@ -226,12 +226,12 @@ bool Core::hasHalted() const {
   }
 
   // Core is considered to have halted when the fetch unit has halted, there are
-  // no active exceptions being handled, and there are no uops in any buffer.
+  // no active exceptions being handled, and there are no uops at the head of
+  // any buffer.
   if (!fetchUnit_.hasHalted()) {
     return false;
   }
 
-  // Check if there are any active exceptions
   if (exceptionHandler_ != nullptr) {
     return false;
   }
@@ -240,18 +240,16 @@ bool Core::hasHalted() const {
     return false;
   }
 
-  // Check heads and tails of each buffer
-  auto decodeSlotsHead = fetchToDecodeBuffer_.getHeadSlots();
-  auto decodeSlotsTail = fetchToDecodeBuffer_.getTailSlots();
+  auto decodeSlots = fetchToDecodeBuffer_.getHeadSlots();
   for (size_t slot = 0; slot < fetchToDecodeBuffer_.getWidth(); slot++) {
-    if (decodeSlotsHead[slot].size() > 0 || decodeSlotsTail[slot].size() > 0) {
+    if (decodeSlots[slot].size() > 0) {
       return false;
     }
   }
-  auto renameSlotsHead = decodeToRenameBuffer_.getHeadSlots();
-  auto renameSlotsTail = decodeToRenameBuffer_.getTailSlots();
+
+  auto renameSlots = decodeToRenameBuffer_.getHeadSlots();
   for (size_t slot = 0; slot < decodeToRenameBuffer_.getWidth(); slot++) {
-    if (renameSlotsHead[slot] != nullptr || renameSlotsTail[slot] != nullptr) {
+    if (renameSlots[slot] != nullptr) {
       return false;
     }
   }
