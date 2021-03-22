@@ -8,7 +8,8 @@ WritebackUnit::WritebackUnit(
     RegisterFileSet& registerFileSet)
     : completionSlots_(completionSlots), registerFileSet_(registerFileSet) {}
 
-void WritebackUnit::tick() {
+unsigned int WritebackUnit::tick() {
+  unsigned int written = 0;
   for (size_t slot = 0; slot < completionSlots_.size(); slot++) {
     auto& uop = completionSlots_[slot].getHeadSlots()[0];
 
@@ -25,9 +26,11 @@ void WritebackUnit::tick() {
     uop->setCommitReady();
 
     instructionsWritten_++;
+    written++;
 
     completionSlots_[slot].getHeadSlots()[0] = nullptr;
   }
+  return written;
 }
 
 uint64_t WritebackUnit::getInstructionsWrittenCount() const {

@@ -17,7 +17,7 @@ class WritebackUnit {
                 RegisterFileSet& registerFileSet);
 
   /** Tick the writeback unit to perform its operation for this cycle. */
-  void tick();
+  unsigned int tick();
 
   /** Retrieve a count of the number of instructions retired. */
   uint64_t getInstructionsWrittenCount() const;

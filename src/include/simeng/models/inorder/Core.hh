@@ -1,11 +1,10 @@
 #pragma once
 
-#include "simeng/Core.hh"
-
 #include <iostream>
 #include <vector>
 
 #include "simeng/ArchitecturalRegisterFileSet.hh"
+#include "simeng/Core.hh"
 #include "simeng/FlatMemoryInterface.hh"
 #include "simeng/pipeline/DecodeUnit.hh"
 #include "simeng/pipeline/ExecuteUnit.hh"
@@ -119,6 +118,9 @@ class Core : public simeng::Core {
 
   /** The number of times this core has been ticked. */
   uint64_t ticks_ = 0;
+
+  /** The number of instructions completed. */
+  uint64_t instructionsCompleted_ = 0;
 
   /** Whether an exception was generated during the cycle. */
   bool exceptionGenerated_ = false;
