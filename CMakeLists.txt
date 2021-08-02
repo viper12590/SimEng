@@ -35,6 +35,12 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
+  googlebenchmark
+  GIT_REPOSITORY https://github.com/google/benchmark.git
+  GIT_PROGRESS   TRUE
+)
+
+FetchContent_Declare(
   yaml-cpp
   GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
   # the latest tagged version (0.6.3) is fairly old and doesn't contain the needed CMake stuff for this to work properly
@@ -122,6 +128,8 @@ if (SIMENG_SANITIZE)
     add_link_options(${SANITIZE_OPTIONS})
 endif()
 
+option(SIMENG_ENABLE_BENCHMARKS "Whether to enable benchmarks for SimEng" OFF)
+
 if(SIMENG_ENABLE_TESTS)
 
   ## Setup LLVM ##
@@ -190,6 +198,16 @@ if(SIMENG_ENABLE_TESTS)
     COMMAND ${CMAKE_CTEST_COMMAND}
     DEPENDS unittests regression-aarch64
   )
+endif()
+
+if(SIMENG_ENABLE_BENCHMARKS)
+  ## setup google benchmark ##
+  set(BENCHMARK_ENABLE_GTEST_TESTS OFF)
+  set(BENCHMARK_ENABLE_TESTING OFF)
+  set(BENCHMARK_ENABLE_INSTALL OFF)
+  #set(BENCHMARK_ENABLE_LTO true)
+  FetchContent_MakeAvailable_Args(googlebenchmark EXCLUDE_FROM_ALL) 
+  add_subdirectory(bench)
 endif()
 
 # include sources
