@@ -110,7 +110,7 @@ Core::Core(MemoryInterface& instructionMemory, MemoryInterface& dataMemory,
 void Core::tick() {
   ticks_++;
 
-  applyStateChange(isa_.getUpdateState());
+  // applyStateChange(isa_.getUpdateState());
 
   if (exceptionHandler_ != nullptr) {
     processExceptionHandler();
