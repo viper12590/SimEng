@@ -722,6 +722,8 @@ void ExceptionHandler::printException(const Instruction& insn) const {
     std::cout << metadata.mnemonic << " " << metadata.operandStr;
   }
   std::cout << "\n      opcode ID: " << metadata.opcode;
+  std::cout << "\n      Instruction sequence ID: 0x" << std::hex
+            << insn.getSequenceId() << std::dec;
   std::cout << std::endl;
 }
 
