@@ -724,6 +724,14 @@ void ExceptionHandler::printException(const Instruction& insn) const {
   std::cout << "\n      opcode ID: " << metadata.opcode;
   std::cout << "\n      Instruction sequence ID: 0x" << std::hex
             << insn.getSequenceId() << std::dec;
+  if (exception == InstructionException::DataAbort) {
+    auto generatedAddresses = insn.getGeneratedAddresses();
+    for (int i = 0; i < generatedAddresses.size(); i++) {
+      std::cout << "\n      Memory address " << i << ": 0x" << std::hex
+                << +generatedAddresses[i].address << std::dec
+                << ", size: " << +generatedAddresses[i].size << std::endl;
+    }
+  }
   std::cout << std::endl;
 }
 
